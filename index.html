@@ -50,6 +50,7 @@ input[type=text],input[type=date],input[type=time],input[type=number],select,tex
   width:100%;border:1px solid var(--border);border-radius:7px;padding:9px 10px;font-size:15px;font-family:inherit;background:#fff}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);border-color:var(--orange)}
 input.scanned{background:#fff7ec;border-color:var(--orange)}
+.todo{background:#fffbe0 !important;border-color:#e6b800 !important}
 textarea{resize:vertical}
 .checks{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:4px}
 .checks label{display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}
@@ -101,6 +102,7 @@ table.p-parts{width:100%;border-collapse:collapse;font-size:8pt}
 table.p-parts th{border:0.5pt solid #b0b0b0;background:#f5f5f5;padding:3px;font-size:7pt}
 table.p-parts td{border:0.5pt solid #b0b0b0;padding:8px 4px}
 .pagebreak{page-break-before:always}
+.keep{break-inside:avoid;page-break-inside:avoid}
 .p-footer{font-size:6.5pt;color:#5a5a5a;text-align:center;border-top:0.5pt solid #c9c9c9;margin-top:10px;padding-top:3px}
 
 /* ---------- iOS / mobile ---------- */
@@ -166,7 +168,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 12</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 19</b></small>
   </div>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
 </header>
@@ -189,6 +191,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <div class="hint" id="engineInfo" style="margin-top:6px"></div>
     <button type="button" class="abtn" id="diagBtn" style="display:none;margin-top:8px">📋 Skopiuj diagnostykę odczytu</button>
     <div class="hint">Kliknij przycisk — na telefonie otworzy się aparat. Sfotografuj z bliska duży kwadratowy kod z dowodu rejestracyjnego (nie mały kod przy pieczątkach). Najlepiej wyjąć dowód z folii, zadbać o dobre światło i ostrość. Dane nie opuszczają tego urządzenia — dekodowanie odbywa się lokalnie w przeglądarce.</div>
+    <div class="hint" style="margin-top:6px">Pola <span style="background:#fffbe0;border:1px solid #e6b800;border-radius:4px;padding:0 8px">na żółto</span> — do uzupełnienia przez pracownika; <span style="background:#fff7ec;border:1px solid var(--orange);border-radius:4px;padding:0 8px">pomarańczowe</span> — wypełnione ze skanu dowodu.</div>
   </div>
 </div>
 
@@ -207,10 +210,15 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <div class="grid g4">
       <div><label class="f">Marka</label><input type="text" id="f_marka"></div>
       <div><label class="f">Model</label><input type="text" id="f_model"></div>
+      <div><label class="f">Wersja</label><input type="text" id="f_wersja"></div>
       <div><label class="f">Rok produkcji</label><input type="text" id="f_rok"></div>
       <div><label class="f">Przebieg (km)</label><input type="text" id="f_przebieg" inputmode="numeric"></div>
       <div><label class="f">Nr rejestracyjny</label><input type="text" id="f_rej"></div>
       <div style="grid-column:span 2"><label class="f">Nr VIN</label><input type="text" id="f_vin"></div>
+      <div><label class="f">Data I rejestracji</label><input type="text" id="f_datarej1" placeholder="RRRR-MM-DD"></div>
+      <div><label class="f">Pojemność (cm³)</label><input type="text" id="f_pojemnosc" inputmode="numeric"></div>
+      <div><label class="f">Moc (kW)</label><input type="text" id="f_moc" inputmode="numeric"></div>
+      <div><label class="f">Rodzaj paliwa</label><input type="text" id="f_rodzpaliwa"></div>
       <div><label class="f">Poziom paliwa</label>
         <select id="f_paliwo"><option value=""></option><option>R (rezerwa)</option><option>1/4</option><option>1/2</option><option>3/4</option><option>F (pełny)</option></select>
       </div>
@@ -258,7 +266,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <div class="body">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
       <label class="f" style="margin:0">Objawy i zlecony zakres prac</label>
-      <button type="button" class="micbtn" id="mic_usterki" title="Dyktuj">🎤 Dyktuj</button>
+      <button type="button" class="micbtn" id="mic_usterki" title="Mikrofon wyłączy się sam po pauzie w mówieniu">🎤 Dyktuj</button>
     </div>
     <textarea id="f_usterki" rows="6" placeholder="Objawy zgłaszane przez klienta oraz zlecony zakres prac — wpisz lub podyktuj"></textarea>
     <div class="grid g2" style="margin-top:10px">
@@ -410,6 +418,12 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       <td colspan="2"><span class="lbl">Nr VIN</span><span class="val" id="p_vin"></span></td>
       <td><span class="lbl">Poziom paliwa</span><span class="val" id="p_paliwo"></span></td>
     </tr>
+    <tr>
+      <td><span class="lbl">Wersja</span><span class="val" id="p_wersja"></span></td>
+      <td><span class="lbl">Data I rejestracji</span><span class="val" id="p_datarej1"></span></td>
+      <td><span class="lbl">Pojemność / Moc</span><span class="val" id="p_pojmoc"></span></td>
+      <td><span class="lbl">Rodzaj paliwa</span><span class="val" id="p_rodzpaliwa"></span></td>
+    </tr>
   </table>
 
   <div class="p-sec"><span class="n">2</span><span class="t">ZLECENIODAWCA</span></div>
@@ -439,13 +453,15 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   </table>
   <div class="p-checkline"><b>Zgoda na zakup części:</b> <span id="p_czesci"></span></div>
 
+  <div class="keep">
   <div class="p-banner">WYDANIE POJAZDU WYŁĄCZNIE PO PEŁNEJ ZAPŁACIE — GOTÓWKĄ LUB PRZELEWEM (PO ZAKSIĘGOWANIU).</div>
-  <div class="p-accept">Oświadczam, że zapoznałem/-am się z Warunkami wykonania naprawy zamieszczonymi na str. 2 niniejszego zlecenia i akceptuję je w całości.</div>
+  <div class="p-accept">Oświadczam, że zapoznałem/-am się z „Warunkami wykonania naprawy” (sekcja 5), stanowiącymi integralną część niniejszego zlecenia, i akceptuję je w całości.</div>
   <div class="p-signs">
     <div class="s"><div class="line" style="position:relative"><img id="p_podpis" src="" alt="" style="display:none;position:absolute;bottom:-2pt;left:50%;transform:translateX(-50%);height:44pt;max-width:95%"></div><div class="cap">data i podpis Zleceniodawcy</div></div>
     <div class="s"><div class="line"></div><div class="cap">data i podpis przyjmującego zlecenie</div></div>
   </div>
-  <div class="p-footer">ASKO Krzysztof Skowron &nbsp;·&nbsp; ul. Galicyjska 2b, 32-300 Niesułowice &nbsp;·&nbsp; NIP 6371525533 &nbsp;·&nbsp; str. 1/2</div>
+  </div>
+  <div class="p-footer">ASKO Krzysztof Skowron &nbsp;·&nbsp; ul. Galicyjska 2b, 32-300 Niesułowice &nbsp;·&nbsp; NIP 6371525533</div>
 
   <!-- ============ STRONA 2 ============ -->
   <div class="pagebreak"></div>
@@ -465,15 +481,20 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <li>Administratorem danych osobowych podanych w zleceniu jest ASKO Krzysztof Skowron, ul. Galicyjska 2b, 32-300 Niesułowice, NIP 6371525533. Dane przetwarzane są w celu realizacji zlecenia, dochodzenia roszczeń i wypełnienia obowiązków podatkowych (art. 6 ust. 1 lit. b, c, f RODO); przysługuje Państwu prawo dostępu do danych, ich sprostowania i usunięcia.</li>
   </ol>
 
+  <div class="keep">
   <div class="p-sec"><span class="n">6</span><span class="t">CZĘŚCI I MATERIAŁY UŻYTE DO NAPRAWY</span></div>
   <table class="p-parts">
     <thead><tr><th style="width:6%">LP.</th><th style="width:52%">NAZWA CZĘŚCI / MATERIAŁU</th><th style="width:12%">ILOŚĆ</th><th style="width:30%">NR KATALOGOWY / UWAGI</th></tr></thead>
     <tbody id="p_parts_body"></tbody>
   </table>
+  </div>
 
+  <div class="keep">
   <div class="p-sec"><span class="n">7</span><span class="t">WYKONANE PRACE / UWAGI WARSZTATU</span></div>
   <div class="p-box" style="min-height:70pt" id="p_prace"></div>
+  </div>
 
+  <div class="keep">
   <div class="p-sec"><span class="n">8</span><span class="t">POKWITOWANIE ODBIORU POJAZDU</span></div>
   <div style="font-size:8.6pt;line-height:1.4">Potwierdzam wykonanie prac w zleconym zakresie oraz kwituję odbiór pojazdu — kompletnego, bez nowych uszkodzeń, wraz z wyposażeniem, kluczykami i dokumentami. Sprawdziłem/-am działanie pojazdu w zakresie wykonanej naprawy i nie wnoszę zastrzeżeń.<br>
   Otrzymałem/-am zwrot wymienionych części: <span id="p_zwrot">&nbsp;☐ TAK &nbsp;&nbsp; ☐ NIE (zgoda na utylizację)</span></div>
@@ -481,7 +502,8 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <div class="s"><div class="line" style="position:relative"><span id="p_odb_data" style="position:absolute;left:0;bottom:2pt;font-size:8pt;color:#1f1f1f"></span><img id="p_podpis2" src="" alt="" style="display:none;position:absolute;bottom:-2pt;left:50%;transform:translateX(-50%);height:44pt;max-width:70%"></div><div class="cap">data i podpis odbierającego pojazd</div></div>
     <div class="s"><div class="line"></div><div class="cap">data i podpis wydającego pojazd</div></div>
   </div>
-  <div class="p-footer">ASKO Krzysztof Skowron &nbsp;·&nbsp; ul. Galicyjska 2b, 32-300 Niesułowice &nbsp;·&nbsp; NIP 6371525533 &nbsp;·&nbsp; str. 2/2</div>
+  </div>
+  <div class="p-footer">ASKO Krzysztof Skowron &nbsp;·&nbsp; ul. Galicyjska 2b, 32-300 Niesułowice &nbsp;·&nbsp; NIP 6371525533</div>
 </div>
 
 <script>
@@ -566,7 +588,15 @@ const FIELD_MAP = {
   adresStary:  [null, 20],
   adresStary2: [null, 21],
   rok:         [56, 41],
+  wersja:      [11, null],
+  pojemnosc:   [48, 32],
+  moc:         [49, 33],
+  paliwoRodzaj:[50, 34],
+  dataRej1:    [51, 36],
 };
+const FUEL_NAMES = { P: "benzyna", D: "olej napędowy (diesel)", M: "mieszanka",
+  LPG: "LPG", CNG: "CNG", H: "wodór", LNG: "LNG", BD: "biodiesel",
+  E85: "etanol E85", EE: "elektryczny", "999": "inne" };
 
 function decodeAztecPayload(raw) {
   /* sanityzacja: usuń wszystko spoza alfabetu base64 */
@@ -599,7 +629,7 @@ function decodeBinary(bin) {
   const filled = nrv2eDecompress(bin.subarray(4), out);
   const text = new TextDecoder("utf-16le").decode(out.subarray(0, filled - (filled % 2)));
   const fields = text.split(/\||\r?\n/);
-  if (fields.length < 20) throw new Error("Zdekodowano zbyt mało pól — spróbuj ponownie.");
+  if (fields.length < 8) throw new Error("Zdekodowano zbyt mało pól — spróbuj ponownie.");
   const isNew = (fields[0] || "").startsWith("XX");
   const get = key => {
     const idx = FIELD_MAP[key][isNew ? 0 : 1];
@@ -614,12 +644,19 @@ function decodeBinary(bin) {
   } else {
     adres = [get("adresStary"), get("adresStary2")].filter(Boolean).join(", ");
   }
+  const num = v => (v || "").replace(/[,.]00$/, "").trim();
+  const fuelRaw = get("paliwoRodzaj").toUpperCase();
   return {
     nrRej: get("nrRej"),
     marka: get("marka"),
     model: get("model"),
+    wersja: get("wersja"),
     vin: get("vin"),
     rok: get("rok"),
+    dataRej1: get("dataRej1"),
+    pojemnosc: num(get("pojemnosc")),
+    moc: num(get("moc")),
+    paliwoRodzaj: fuelRaw ? (FUEL_NAMES[fuelRaw] || fuelRaw) : "",
     wlasciciel: get("wlasciciel"),
     peselRegon: get("peselRegon"),
     adres: adres,
@@ -646,8 +683,9 @@ function escHtml(s) {
 }
 
 function fillForm(d) {
-  const map = { f_rej: d.nrRej, f_marka: d.marka, f_model: d.model, f_vin: d.vin,
-                f_rok: d.rok, f_klient: d.wlasciciel, f_nip: d.peselRegon, f_adres: d.adres };
+  const map = { f_rej: d.nrRej, f_marka: d.marka, f_model: d.model, f_wersja: d.wersja, f_vin: d.vin,
+                f_rok: d.rok, f_datarej1: d.dataRej1, f_pojemnosc: d.pojemnosc, f_moc: d.moc,
+                f_rodzpaliwa: d.paliwoRodzaj, f_klient: d.wlasciciel, f_nip: d.peselRegon, f_adres: d.adres };
   let filled = 0;
   for (const [id, val] of Object.entries(map)) {
     if (val) { $(id).value = val; $(id).classList.add("scanned"); filled++; }
@@ -657,6 +695,8 @@ function fillForm(d) {
     ". Wypełniono " + filled + " pól (podświetlone)." +
     (partial ? " Uwaga: odczyt był niepełny (uszkodzony fragment kodu) — sprawdź i uzupełnij brakujące pola ręcznie." :
                " Uzupełnij telefon, przebieg i opis usterek."), "ok");
+  regonToNip(false);
+  updateTodo();
   scheduleDraft();
   document.querySelector(".card:nth-of-type(3)").scrollIntoView({ behavior: "smooth" });
 }
@@ -892,10 +932,14 @@ function printDoc() {
   $("p_nr").textContent = txt($("f_nr").value);
   $("p_data").textContent = $("f_data").value ? $("f_data").value.split("-").reverse().join(".") : "";
   $("p_godz").textContent = txt($("f_godz").value);
-  ["marka","model","rok","przebieg","rej","vin","klient","nip","tel","adres","koszt","termin"].forEach(k => {
+  ["marka","model","wersja","rok","przebieg","rej","vin","datarej1","rodzpaliwa","klient","nip","tel","adres","koszt","termin"].forEach(k => {
     $("p_" + k).textContent = txt($("f_" + k).value);
   });
   $("p_paliwo").textContent = txt($("f_paliwo").value);
+  $("p_pojmoc").textContent = [
+    $("f_pojemnosc").value ? $("f_pojemnosc").value + " cm³" : "",
+    $("f_moc").value ? $("f_moc").value + " kW" : ""
+  ].filter(Boolean).join(" / ");
   $("p_koszt").textContent = $("f_koszt").value ? $("f_koszt").value.replace(/zł\s*$/i, "").trim() + " zł" : "";
   const tyt = document.querySelector("input[name=tytul]:checked");
   $("p_tytul").textContent = ["właścicielem pojazdu","współwłaścicielem pojazdu","osobą upoważnioną przez właściciela"]
@@ -991,51 +1035,174 @@ function plKwota(raw) {
   return out;
 }
 
-function setupDictation(btnId, targetId, mode, transform) {
-  const btn = $(btnId), target = $(targetId);
-  if (!SR || !window.isSecureContext || navigator.standalone === true) {
-    /* w trybie „ikony z ekranu początkowego” iOS blokuje rozpoznawanie mowy Safari —
-       przechodzimy od razu na dyktowanie klawiaturą */
-    btn.addEventListener("click", () => dictationFallback(target));
-    return;
+/* --- autokorekta motoryzacyjna: prostuje przekręcone słowa po dyktowaniu --- */
+const MOTO_SLOWNIK = ["hamulcowe","hamulcowa","hamulcowy","hamulec","hamulce","tarcze","tarcza","tarczki","klocki","klocek",
+"sprzęgło","sprzęgła","dwumasowe","dwumas","docisk","wysprzęglik","rozrząd","rozrządu","pasek","paska","łańcuch","napinacz",
+"rozrusznik","alternator","akumulator","zawieszenie","zawieszenia","amortyzator","amortyzatory","wahacz","wahacze","sworzeń",
+"sworznie","przegub","przeguby","półoś","półosie","łożysko","łożyska","piasta","piasty","końcówka","końcówki","drążek","drążka",
+"kierowniczy","kierownicza","przekładnia","maglownica","tłumik","tłumika","katalizator","filtr","filtry","cząstek","stałych",
+"olej","oleju","olejowy","silnikowy","silnika","silnik","skrzynia","skrzyni","biegów","uszczelka","uszczelki","uszczelniacz",
+"simering","głowica","głowicy","świece","żarowe","zapłonowe","cewka","cewki","wtryskiwacz","wtryskiwacze","wtryski","pompa",
+"pompy","paliwa","paliwowy","wody","wspomagania","turbosprężarka","turbina","intercooler","chłodnica","chłodnicy","termostat",
+"nagrzewnica","kompresor","klimatyzacja","klimatyzacji","sprężarka","osuszacz","tuleja","tuleje","stabilizator","stabilizatora",
+"łącznik","łączniki","zwrotnica","geometria","zbieżność","wycieraczki","pióra","żarówka","żarówki","reflektor","lampa","lampy",
+"czujnik","czujniki","sonda","lambda","przepływomierz","zawór","zawory","koła","koło","opony","opona","felga","felgi",
+"wyważenie","wymiana","wymienić","naprawa","diagnostyka","kontrolka","sprawdzenie","przegląd","powietrza","kabinowy",
+"bęben","bębny","cylinderek","zacisk","zaciski","prowadnice","przewód","przewody","elastyczny","metalowy","płyn","hamulcowego",
+"chłodniczy","stuki","stuka","piszczy","gwizd","wyciek","wycieki","luz","luzy","zużyte","zużyty","pęknięta","pęknięty",
+"skorodowany","wibracje","szarpie","gaśnie","dymi","przednie","tylne","lewy","prawy","przód","tył"];
+function _lev(a, b) {
+  const m = a.length, n = b.length;
+  if (Math.abs(m - n) > 2) return 3;
+  let prev = new Array(n + 1), cur = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    cur[0] = i;
+    let rowMin = i;
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (cur[j] < rowMin) rowMin = cur[j];
+    }
+    if (rowMin > 2) return 3;
+    [prev, cur] = [cur, prev];
   }
-  let rec = null, active = false;
-  btn.addEventListener("click", () => {
-    if (active) { rec.stop(); return; }
-    rec = new SR();
+  return prev[n];
+}
+function autoCorrectPL(text) {
+  /* poprawiamy wyłącznie błędy w rdzeniu słowa; różnice w końcówce (odmiana
+     przez przypadki) zostawiamy w spokoju, żeby nie psuć poprawnej polszczyzny */
+  const suffixOnly = (a, b) => {
+    const cut = Math.min(a.length, b.length) - 1;
+    return cut > 0 && a.slice(0, cut) === b.slice(0, cut);
+  };
+  return text.split(/(\s+)/).map(tok => {
+    if (!/^[a-ząćęłńóśźż-]+$/i.test(tok)) return tok;
+    const low = tok.toLowerCase();
+    if (low.length < 5 || MOTO_SLOWNIK.indexOf(low) !== -1) return tok;
+    const maxd = low.length >= 8 ? 2 : 1;
+    let best = null, bd = 3;
+    for (const w of MOTO_SLOWNIK) {
+      if (suffixOnly(low, w)) return tok; /* to zapewne poprawna odmiana słowa ze słownika */
+      const d = _lev(low, w);
+      if (d < bd) { bd = d; best = w; if (bd === 0) break; }
+    }
+    if (best && bd <= maxd && !suffixOnly(low, best) && (bd === 1 || low[0] === best[0])) {
+      return (tok[0] === tok[0].toUpperCase()) ? best[0].toUpperCase() + best.slice(1) : best;
+    }
+    return tok;
+  }).join("");
+}
+
+function verbalPunct(t) {
+  return t
+    .replace(/\s*\bprzecinek\b/gi, ",")
+    .replace(/\s*\bkropka\b/gi, ".")
+    .replace(/\s*\bnowa linia\b/gi, "\n")
+    .replace(/\s*\bznak zapytania\b/gi, "?")
+    .replace(/\s*\bwykrzyknik\b/gi, "!");
+}
+async function ensureMic() {
+  if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return true;
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: true });
+    st.getTracks().forEach(t => t.stop());
+    return true;
+  } catch (e) { return false; }
+}
+let micReady = false, activeRec = null;
+function micUiOn(btn, target) {
+  if (btn) { btn.classList.add("rec"); btn.textContent = btn.textContent.replace("🎤", "⏺"); }
+  if (target) target.classList.add("scanned");
+}
+function micUiOff(btn, target) {
+  if (btn) { btn.classList.remove("rec"); btn.textContent = btn.textContent.replace("⏺", "🎤"); }
+  if (target) target.classList.remove("scanned");
+  try { updateTodo(); } catch (e) {}
+}
+/* Jeden silnik dyktowania dla wszystkich pól.
+   Zasada działania: jedno „nabranie tchu” = jeden odczyt; mikrofon WYŁĄCZA SIĘ SAM,
+   gdy przestajesz mówić (pauza ~1-2 s). Kolejne dotknięcie 🎤 dokłada następne zdanie. */
+function dictate(target, opts) {
+  opts = opts || {};
+  const btn = opts.btn || null;
+  if (!SR || !window.isSecureContext) { dictationFallback(target); return; }
+  if (activeRec) { try { activeRec.stop(); } catch (e) {} activeRec = null; return; }
+  const begin = () => {
+    let rec;
+    try { rec = new SR(); } catch (e) { dictationFallback(target); return; }
     rec.lang = "pl-PL";
-    rec.continuous = (mode === "append");
+    rec.continuous = false;          /* auto-stop po pauzie w mówieniu */
     rec.interimResults = false;
+    rec.maxAlternatives = 5;
+    let got = false, started = false, safety = null;
+    rec.onstart = () => {
+      started = true; activeRec = rec;
+      micUiOn(btn, target);
+      safety = setTimeout(() => { try { rec.stop(); } catch (e) {} }, 15000); /* twardy limit 15 s */
+    };
     rec.onresult = ev => {
+      const res = ev.results[ev.results.length - 1];
+      if (!res.isFinal) return;
       let text = "";
-      for (let i = ev.resultIndex; i < ev.results.length; i++)
-        if (ev.results[i].isFinal) text += ev.results[i][0].transcript;
-      text = text.trim();
-      if (!text) return;
-      if (mode === "append") {
-        target.value = (target.value ? target.value.replace(/\s+$/, "") + " " : "") +
-          text.charAt(0).toUpperCase() + text.slice(1);
+      if (opts.transform) {
+        for (let a2 = 0; a2 < res.length; a2++) {
+          const cand = opts.transform((res[a2].transcript || "").trim());
+          if (/\d/.test(cand)) { text = cand; break; }
+        }
+        if (!text) text = opts.transform((res[0].transcript || "").trim());
+        if (text) target.value = text;
       } else {
-        target.value = transform ? transform(text) : text;
+        text = autoCorrectPL(verbalPunct((res[0].transcript || "").trim()));
+        if (!text) return;
+        if (opts.mode === "append") {
+          target.value = (target.value ? target.value.replace(/\s+$/, "") + " " : "") +
+            text.charAt(0).toUpperCase() + text.slice(1);
+        } else {
+          target.value = text;
+        }
       }
+      got = true;
       scheduleDraft();
     };
-    let startedFlag = false;
-    rec.onstart = () => { startedFlag = true; active = true; btn.classList.add("rec"); btn.textContent = btn.textContent.replace("🎤", "⏺"); };
-    rec.onend = () => { active = false; btn.classList.remove("rec"); btn.textContent = btn.textContent.replace("⏺", "🎤"); };
+    rec.onend = () => {
+      clearTimeout(safety);
+      if (activeRec === rec) activeRec = null;
+      micUiOff(btn, target);
+      if (got && typeof opts.onDone === "function") opts.onDone(target.value);
+      if (!got) toast("Nie usłyszałem — dotknij 🎤 i powiedz jeszcze raz");
+    };
     rec.onerror = e => {
-      active = false; btn.classList.remove("rec"); btn.textContent = btn.textContent.replace("⏺", "🎤");
-      if (e.error === "not-allowed" || e.error === "service-not-allowed" || e.error === "audio-capture") {
+      clearTimeout(safety);
+      if (activeRec === rec) activeRec = null;
+      micUiOff(btn, target);
+      if (e.error === "aborted" || e.error === "no-speech") return;
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        if (!micReady) { micReady = true; toast("Dotknij 🎤 jeszcze raz — teraz mikrofon wystartuje"); return; }
         dictationFallback(target);
-      } else if (e.error !== "aborted" && e.error !== "no-speech") {
-        dictationFallback(target);
+        return;
       }
+      toast("Mikrofon — błąd: " + e.error);
+      dictationFallback(target);
     };
     try { rec.start(); } catch (err) { dictationFallback(target); return; }
     setTimeout(() => {
-      if (!startedFlag) { try { rec.abort(); } catch (e) {} dictationFallback(target); }
-    }, 1600);
+      if (!started) { try { rec.abort(); } catch (e) {} if (activeRec === rec) activeRec = null; dictationFallback(target); }
+    }, 5000);
+  };
+  if (micReady) { begin(); return; }
+  ensureMic().then(ok => {
+    micReady = true;
+    if (!ok) {
+      setStatus("✖ Brak zgody na mikrofon. Włącz: Ustawienia iPhone’a → Aplikacje → Safari → Mikrofon, albo ikona „Aa” w pasku adresu → Ustawienia witryny → Mikrofon: Zezwalaj.", "err");
+      target.focus();
+      return;
+    }
+    begin();
   });
+}
+function setupDictation(btnId, targetId, mode, transform) {
+  const btn = $(btnId);
+  btn.addEventListener("click", () => dictate($(targetId), { mode, transform, btn }));
 }
 
 /* ==================== PODPISY (przyjęcie i odbiór) ==================== */
@@ -1099,7 +1266,7 @@ $("odbNow").addEventListener("click", () => {
 });
 
 /* ==================== FORMULARZ ↔ DANE ==================== */
-const TXT_IDS = ["f_nr","f_data","f_godz","f_marka","f_model","f_rok","f_przebieg","f_rej","f_vin",
+const TXT_IDS = ["f_nr","f_data","f_godz","f_marka","f_model","f_wersja","f_rok","f_przebieg","f_rej","f_vin","f_datarej1","f_pojemnosc","f_moc","f_rodzpaliwa",
                  "f_paliwo","f_klient","f_nip","f_adres","f_tel","f_stan","f_usterki","f_koszt","f_termin","w_klucz_szt",
                  "f_odb_data","f_odb_godz","f_prace"];
 const CHK_IDS = ["w_dowod","w_klucz","w_kolo","w_gasnica","w_trojkat","w_radio","c_oryg","c_zam","c_uzyw","c_klient"];
@@ -1130,6 +1297,7 @@ function setFormData(d) {
   sig2.set(d.podpis2 || "");
   renderParts(d.czesci || []);
   $("odbBadge").style.display = (d.podpis2 || d.f_odb_data) ? "inline-block" : "none";
+  updateTodo();
 }
 
 /* ==================== PAMIĘĆ ZLECEŃ ==================== */
@@ -1219,6 +1387,44 @@ function resetForm() {
   statusEl.textContent = ""; statusEl.className = "";
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
+
+/* --- REGON -> NIP przez oficjalny Wykaz Podatników VAT (biała lista MF) --- */
+function digitsOnly(s) { return String(s || "").replace(/\D+/g, ""); }
+function isValidRegon(r) {
+  if (!/^\d{9}$/.test(r) && !/^\d{14}$/.test(r)) return false;
+  const w = r.length === 9 ? [8, 9, 2, 3, 4, 5, 6, 7] : [2, 4, 8, 5, 0, 9, 7, 3, 6, 1, 2, 4, 8];
+  let s = 0;
+  for (let i = 0; i < w.length; i++) s += w[i] * (+r[i]);
+  let c = s % 11;
+  if (c === 10) c = 0;
+  return c === +r[r.length - 1];
+}
+async function regonToNip(showBusy) {
+  const el = $("f_nip");
+  const v = digitsOnly(el.value);
+  if (!(v.length === 9 || v.length === 14) || !isValidRegon(v)) return;
+  if (showBusy) toast("Sprawdzam NIP dla REGON " + v + " w wykazie MF…");
+  try {
+    const date = new Date().toISOString().slice(0, 10);
+    const resp = await fetch("https://wl-api.mf.gov.pl/api/search/regon/" + v + "?date=" + date,
+      { headers: { "Accept": "application/json" } });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const j = await resp.json();
+    const subj = j && j.result && j.result.subject;
+    if (subj && subj.nip) {
+      el.value = subj.nip;
+      el.classList.add("scanned");
+      scheduleDraft();
+      toast("✔ REGON " + v + " → NIP " + subj.nip + (subj.name ? " (" + subj.name.slice(0, 40) + ")" : ""));
+      if (subj.name && !$("f_klient").value) { $("f_klient").value = subj.name; $("f_klient").classList.add("scanned"); }
+    } else {
+      toast("Nie znaleziono NIP dla REGON " + v + " w wykazie MF — w polu pozostaje REGON");
+    }
+  } catch (e) {
+    toast("Nie udało się pobrać NIP z wykazu MF (internet?) — w polu pozostaje REGON");
+  }
+}
+$("f_nip").addEventListener("blur", () => regonToNip(true));
 
 function normalizeKoszt() {
   const v = $("f_koszt").value.trim();
@@ -1383,8 +1589,12 @@ $("impInput").addEventListener("change", ev => {
 });
 
 /* ==================== AUTOZAPIS SZKICU ==================== */
-document.querySelector(".app-ui").addEventListener("input", scheduleDraft);
-document.querySelector(".app-ui").addEventListener("change", scheduleDraft);
+const TODO_IDS = ["f_przebieg", "f_paliwo", "f_tel", "f_usterki", "f_koszt", "f_termin"];
+function updateTodo() {
+  TODO_IDS.forEach(id => { const el = $(id); el.classList.toggle("todo", !el.value); });
+}
+document.querySelector(".app-ui").addEventListener("input", () => { scheduleDraft(); updateTodo(); });
+document.querySelector(".app-ui").addEventListener("change", () => { scheduleDraft(); updateTodo(); });
 
 
 /* ==================== ZASTOSOWANE CZĘŚCI ==================== */
@@ -1488,43 +1698,9 @@ async function searchIC(partName) {
 
 /* ==================== GŁOS — uniwersalne dyktowanie ==================== */
 function startVoice(target, onDone) {
-  if (!SR || !window.isSecureContext || navigator.standalone === true) { dictationFallback(target); return; }
-  let rec;
-  try { rec = new SR(); } catch (e) { dictationFallback(target); return; }
-  rec.lang = "pl-PL";
-  rec.continuous = false;
-  rec.interimResults = false;
-  let got = false;
-  target.classList.add("scanned");
-  toast("🎤 Słucham… powiedz nazwę części");
-  rec.onresult = ev => {
-    let text = "";
-    for (let i = ev.resultIndex; i < ev.results.length; i++)
-      if (ev.results[i].isFinal) text += ev.results[i][0].transcript;
-    text = text.trim();
-    if (!text) return;
-    got = true;
-    target.value = text.charAt(0).toUpperCase() + text.slice(1);
-    scheduleDraft();
-  };
-  rec.onend = () => {
-    target.classList.remove("scanned");
-    if (got && typeof onDone === "function") onDone(target.value);
-    else if (!got) toast("Nie usłyszałem — spróbuj ponownie lub użyj mikrofonu na klawiaturze");
-  };
-  rec.onerror = e => {
-    target.classList.remove("scanned");
-    if (e.error !== "aborted" && e.error !== "no-speech") dictationFallback(target);
-  };
-  let svStarted = false;
-  const oldOnStart = rec.onstart;
-  rec.onstart = () => { svStarted = true; if (oldOnStart) oldOnStart(); };
-  try { rec.start(); } catch (e) { dictationFallback(target); return; }
-  setTimeout(() => {
-    if (!svStarted) { try { rec.abort(); } catch (e) {} target.classList.remove("scanned"); dictationFallback(target); }
-  }, 1600);
+  toast("🎤 Powiedz nazwę części — mikrofon wyłączy się sam po pauzie");
+  dictate(target, { mode: "replace", onDone });
 }
-
 $("partVoice").addEventListener("click", () => {
   const row = addPartRow({}, false);
   const inp = row.querySelector(".p-name");
@@ -1546,14 +1722,14 @@ $("csvBtn").addEventListener("click", () => {
   const list = loadAll().slice().sort((a, b) => (a.updatedAt || "").localeCompare(b.updatedAt || ""));
   if (!list.length) { toast("Brak zleceń do wyeksportowania"); return; }
   const head = ["Nr zlecenia","Data","Godzina","Klient","NIP/PESEL","Telefon/e-mail","Adres","Marka","Model","Rok",
-                "Nr rejestracyjny","VIN","Przebieg","Paliwo","Usterki / zakres prac","Części (nazwa x il. [nr])",
+                "Nr rejestracyjny","VIN","Wersja","Data I rejestracji","Pojemność (cm3)","Moc (kW)","Rodzaj paliwa","Przebieg","Paliwo (poziom)","Usterki / zakres prac","Części (nazwa x il. [nr])",
                 "Koszt szacunkowy","Termin","Podpis klienta","Data odbioru","Podpis odbioru","Wykonane prace","Utworzono","Zaktualizowano"];
   const rows = list.map(r => {
     const d = r.data || {};
     const parts = (d.czesci || []).map(pt =>
       [pt.n, pt.il ? "x" + pt.il : "", pt.nr ? "[" + pt.nr + "]" : ""].filter(Boolean).join(" ")).join(" | ");
     return [d.f_nr, d.f_data, d.f_godz, d.f_klient, d.f_nip, d.f_tel, d.f_adres, d.f_marka, d.f_model, d.f_rok,
-            d.f_rej, d.f_vin, d.f_przebieg, d.f_paliwo, d.f_usterki, parts, d.f_koszt, d.f_termin,
+            d.f_rej, d.f_vin, d.f_wersja, d.f_datarej1, d.f_pojemnosc, d.f_moc, d.f_rodzpaliwa, d.f_przebieg, d.f_paliwo, d.f_usterki, parts, d.f_koszt, d.f_termin,
             d.podpis ? "TAK" : "NIE",
             [d.f_odb_data, d.f_odb_godz].filter(Boolean).join(" "),
             d.podpis2 ? "TAK" : "NIE",
@@ -1629,6 +1805,7 @@ function shareOrder(rec) {
   if (!storageOK) $("storWarn").style.display = "block";
   if (liveSupported()) $("liveBtn").style.display = "inline-block";
   loadZx().then(engineNote);
+  updateTodo();
   $("f_nr").value = newOrderNumber();
   renderArch();
   const draft = loadDraft();
