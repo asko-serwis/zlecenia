@@ -166,7 +166,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 9</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 10</b></small>
   </div>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
 </header>
@@ -566,8 +566,11 @@ const FIELD_MAP = {
 };
 
 function decodeAztecPayload(raw) {
-  const b64 = raw.replace(/\s+/g, "");
+  /* sanityzacja: usuń wszystko spoza alfabetu base64 i napraw dopełnienie */
+  let b64 = String(raw).replace(/[^A-Za-z0-9+\/=]/g, "");
   if (b64.length < 20) throw new Error("Za krótki odczyt — zeskanuj ponownie.");
+  b64 = b64.replace(/=+$/, "");
+  while (b64.length % 4) b64 += "=";
   let bin;
   try {
     const s = atob(b64);
@@ -576,6 +579,9 @@ function decodeAztecPayload(raw) {
   } catch (e) {
     throw new Error("Odczytany kod nie jest kodem z dowodu rejestracyjnego (błędne Base64).");
   }
+  return decodeBinary(bin);
+}
+function decodeBinary(bin) {
   const outLen = bin[0] | (bin[1] << 8) | (bin[2] << 16) | (bin[3] << 24);
   if (outLen <= 0 || outLen > 500000) throw new Error("Nieprawidłowy nagłówek danych — to raczej nie jest kod z dowodu.");
   const out = new Uint8Array(outLen);
@@ -641,9 +647,32 @@ function fillForm(d) {
   document.querySelector(".card:nth-of-type(3)").scrollIntoView({ behavior: "smooth" });
 }
 
-function handleDecoded(rawText) {
-  try { fillForm(decodeAztecPayload(rawText)); return true; }
-  catch (e) { setStatus("✖ " + e.message, "err"); return false; }
+function handleDecoded(res) {
+  const text = (typeof res === "string") ? res : ((res && res.text) || "");
+  const bytes = (res && typeof res === "object" && res.bytes) ? res.bytes : null;
+  let lastErr = null;
+  try { fillForm(decodeAztecPayload(text)); return true; } catch (e) { lastErr = e; }
+  if (bytes && bytes.length > 8) {
+    /* a) surowe bajty jako tekst base64 */
+    try {
+      let s = "";
+      for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+      fillForm(decodeAztecPayload(s));
+      return true;
+    } catch (e) {}
+    /* b) surowe bajty jako skompresowane dane (bez warstwy base64) */
+    try {
+      fillForm(decodeBinary(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)));
+      return true;
+    } catch (e) {}
+  }
+  const peek = text
+    ? " [diagnostyka: " + text.length + " znaków, początek: „" +
+      text.slice(0, 24).replace(/[\u0000-\u001f]/g, "·") + "…”]"
+    : "";
+  setStatus("✖ " + (lastErr ? lastErr.message : "Nieznany błąd dekodowania.") +
+    " Upewnij się, że skanujesz DUŻY kwadratowy kod z pierwszej strony dowodu (nie mały kod przy pieczątkach ani kod z polisy/innego dokumentu)." + peek, "err");
+  return false;
 }
 
 /* ==================== SKANER (ZXing-WASM) ==================== */
@@ -682,7 +711,9 @@ async function zxRead(input) {
   if (!zxMod) return null;
   const opts = { formats: ["Aztec"], tryHarder: true, tryRotate: true, tryInvert: true, maxNumberOfSymbols: 1 };
   const res = await zxMod.readBarcodes(input, opts);
-  return (res && res.length && res[0].text) ? res[0].text : null;
+  if (res && res.length && (res[0].text || (res[0].bytes && res[0].bytes.length)))
+    return { text: res[0].text || "", bytes: res[0].bytes || null };
+  return null;
 }
 
 function fileToImage(file) {
@@ -716,6 +747,7 @@ async function scanPhoto(file) {
     setStatus("✖ Silnik skanera niedostępny. Sprawdź, czy w repozytorium GitHub obok index.html znajdują się pliki zxing-reader.js oraz zxing_reader.wasm, i czy telefon ma internet.", "err");
     return;
   }
+  let gotSymbol = false;
   const plans = [
     { make: async () => file },
     { make: () => makeVariant(file, 2400, false) },
@@ -728,10 +760,14 @@ async function scanPhoto(file) {
     setStatus("Analizuję zdjęcie… (" + (i + 1) + "/" + plans.length + ")", "info");
     try {
       const f = await plans[i].make();
-      const txt = await zxRead(f);
-      if (txt) { handleDecoded(txt); return; }
+      const r = await zxRead(f);
+      if (r) {
+        gotSymbol = true;
+        if (handleDecoded(r)) return;
+      }
     } catch (e) {}
   }
+  if (gotSymbol) return; /* symbol odczytany, błąd treści już wyświetlony z diagnostyką */
   setStatus("✖ Nie udało się odczytać kodu Aztec z tego zdjęcia. Najskuteczniej: wyjmij dowód z folii, połóż płasko przy świetle dziennym (bez lampy błyskowej i odblasków), trzymaj telefon równolegle 10–15 cm nad kodem i zrób ostre zdjęcie tak, by SAM duży kwadratowy kod wypełniał prawie cały kadr. Możesz też użyć przycisku „Skanuj kamerą na żywo”.", "err");
 }
 
@@ -783,11 +819,11 @@ async function startLive() {
         const out = Math.min(1280, side);
         cv.width = out; cv.height = out;
         cx.drawImage(liveVideo, sx, sy, side, side, 0, 0, out, out);
-        const txt = await zxRead(cx.getImageData(0, 0, out, out));
-        if (txt) {
+        const r = await zxRead(cx.getImageData(0, 0, out, out));
+        if (r) {
           await stopLive();
           if (navigator.vibrate) navigator.vibrate(80);
-          handleDecoded(txt);
+          handleDecoded(r);
         }
       }
     } catch (e) {}
