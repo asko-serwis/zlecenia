@@ -166,7 +166,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 10</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 11</b></small>
   </div>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
 </header>
@@ -187,6 +187,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <div id="reader"></div>
     <div id="status"></div>
     <div class="hint" id="engineInfo" style="margin-top:6px"></div>
+    <button type="button" class="abtn" id="diagBtn" style="display:none;margin-top:8px">📋 Skopiuj diagnostykę odczytu</button>
     <div class="hint">Kliknij przycisk — na telefonie otworzy się aparat. Sfotografuj z bliska duży kwadratowy kod z dowodu rejestracyjnego (nie mały kod przy pieczątkach). Najlepiej wyjąć dowód z folii, zadbać o dobre światło i ostrość. Dane nie opuszczają tego urządzenia — dekodowanie odbywa się lokalnie w przeglądarce.</div>
   </div>
 </div>
@@ -647,33 +648,53 @@ function fillForm(d) {
   document.querySelector(".card:nth-of-type(3)").scrollIntoView({ behavior: "smooth" });
 }
 
-function handleDecoded(res) {
-  const text = (typeof res === "string") ? res : ((res && res.text) || "");
-  const bytes = (res && typeof res === "object" && res.bytes) ? res.bytes : null;
-  let lastErr = null;
-  try { fillForm(decodeAztecPayload(text)); return true; } catch (e) { lastErr = e; }
-  if (bytes && bytes.length > 8) {
-    /* a) surowe bajty jako tekst base64 */
-    try {
-      let s = "";
-      for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-      fillForm(decodeAztecPayload(s));
-      return true;
-    } catch (e) {}
-    /* b) surowe bajty jako skompresowane dane (bez warstwy base64) */
-    try {
-      fillForm(decodeBinary(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)));
-      return true;
-    } catch (e) {}
+function handleDecoded(input) {
+  const cands = Array.isArray(input) ? input : [input];
+  let lastErr = null, best = null;
+  for (const res of cands) {
+    const text = (typeof res === "string") ? res : ((res && res.text) || "");
+    const bytes = (res && typeof res === "object" && res.bytes) ? res.bytes : null;
+    if (!best || text.length > (best.text || "").length) best = { text, bytes };
+    try { fillForm(decodeAztecPayload(text)); $("diagBtn").style.display = "none"; return true; }
+    catch (e) { lastErr = e; }
+    if (bytes && bytes.length > 8) {
+      try {
+        let s = "";
+        for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+        fillForm(decodeAztecPayload(s));
+        $("diagBtn").style.display = "none";
+        return true;
+      } catch (e) {}
+      try {
+        fillForm(decodeBinary(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)));
+        $("diagBtn").style.display = "none";
+        return true;
+      } catch (e) {}
+    }
   }
-  const peek = text
-    ? " [diagnostyka: " + text.length + " znaków, początek: „" +
-      text.slice(0, 24).replace(/[\u0000-\u001f]/g, "·") + "…”]"
+  window.__askoDiag = best;
+  const peek = best && best.text
+    ? " [diagnostyka: " + best.text.length + " znaków, początek: „" +
+      best.text.slice(0, 24).replace(/[\u0000-\u001f]/g, "·") + "…”]"
     : "";
   setStatus("✖ " + (lastErr ? lastErr.message : "Nieznany błąd dekodowania.") +
-    " Upewnij się, że skanujesz DUŻY kwadratowy kod z pierwszej strony dowodu (nie mały kod przy pieczątkach ani kod z polisy/innego dokumentu)." + peek, "err");
+    " Skanuj DUŻY kwadratowy kod z pierwszej strony dowodu." + peek, "err");
+  $("diagBtn").style.display = "inline-block";
   return false;
 }
+$("diagBtn").addEventListener("click", async () => {
+  const d = window.__askoDiag || {};
+  const hex = d.bytes
+    ? Array.from(d.bytes.slice(0, 48)).map(b => b.toString(16).padStart(2, "0")).join(" ")
+    : "";
+  const report = "DIAGNOSTYKA SKANU ASKO\n" +
+    "textLength: " + ((d.text || "").length) + "\n" +
+    "textStart: " + JSON.stringify((d.text || "").slice(0, 200)) + "\n" +
+    "bytesLength: " + (d.bytes ? d.bytes.length : 0) + "\n" +
+    "bytesHexStart: " + hex;
+  const ok = await copyText(report);
+  toast(ok ? "📋 Diagnostyka skopiowana — wklej ją w rozmowie z Claude" : "Nie udało się skopiować");
+});
 
 /* ==================== SKANER (ZXing-WASM) ==================== */
 let zxMod = null, zxTried = false, zxSource = "";
@@ -709,11 +730,16 @@ function engineNote() {
 async function zxRead(input) {
   if (!zxMod) { await loadZx(); engineNote(); }
   if (!zxMod) return null;
-  const opts = { formats: ["Aztec"], tryHarder: true, tryRotate: true, tryInvert: true, maxNumberOfSymbols: 1 };
+  const opts = { formats: ["Aztec"], tryHarder: true, tryRotate: true, tryInvert: true, maxNumberOfSymbols: 4 };
   const res = await zxMod.readBarcodes(input, opts);
-  if (res && res.length && (res[0].text || (res[0].bytes && res[0].bytes.length)))
-    return { text: res[0].text || "", bytes: res[0].bytes || null };
-  return null;
+  if (!res || !res.length) return null;
+  const cands = res
+    .filter(r => r.text || (r.bytes && r.bytes.length))
+    .map(r => ({ text: r.text || "", bytes: r.bytes || null }))
+    /* na dowodzie są DWA kody Aztec — duży z danymi i mały legalizacyjny;
+       bierzemy od najdłuższej treści, żeby zawsze trafić w ten właściwy */
+    .sort((a, b) => (b.bytes ? b.bytes.length : b.text.length) - (a.bytes ? a.bytes.length : a.text.length));
+  return cands.length ? cands : null;
 }
 
 function fileToImage(file) {
