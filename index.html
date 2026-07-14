@@ -11,7 +11,6 @@
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>ASKO — Asystent zlecenia naprawy</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{
   --orange:#E07B00; --orange-dark:#c56c00; --dark:#1f1f1f; --grey:#5a5a5a;
@@ -136,6 +135,13 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   .part-row .p-name,.part-row .p-cat{grid-column:auto}
   .part-row .p-btns{grid-column:auto}
 }
+
+/* ---------- ikona archiwum w nagłówku ---------- */
+#topArch{margin-left:auto;flex:0 0 auto;position:relative;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#topArch span{position:absolute;top:-7px;right:-7px;background:var(--orange);color:#fff;font-size:12px;font-weight:bold;border-radius:10px;min-width:20px;height:20px;line-height:20px;padding:0 4px}
+#archModal .mrow{cursor:pointer}
+#archModal .mrow:active{background:#fff3e6}
+@media print{#topArch,#archModal{display:none!important}}
 /* ---------- archiwum zleceń ---------- */
 .arch-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .arch-item{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fafafa}
@@ -158,10 +164,11 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <div class="app-ui">
 <header class="app">
   <img id="logoImg" src="" alt="ASKO">
-  <div>
+  <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
     <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam</small>
   </div>
+  <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
 </header>
 
 <div class="wrap">
@@ -179,6 +186,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     </div>
     <div id="reader"></div>
     <div id="status"></div>
+    <div class="hint" id="engineInfo" style="margin-top:6px"></div>
     <div class="hint">Kliknij przycisk — na telefonie otworzy się aparat. Sfotografuj z bliska duży kwadratowy kod z dowodu rejestracyjnego (nie mały kod przy pieczątkach). Najlepiej wyjąć dowód z folii, zadbać o dobre światło i ostrość. Dane nie opuszczają tego urządzenia — dekodowanie odbywa się lokalnie w przeglądarce.</div>
   </div>
 </div>
@@ -358,6 +366,15 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <button class="btn btn-grey" id="newBtn">🆕 Nowe zlecenie</button>
 </div>
 <div class="hint" style="text-align:center;padding-bottom:24px">Drukowanie zlecenia zapisuje je też automatycznie w archiwum. Drukuj dwustronnie — warunki naprawy trafią na odwrót kartki. Na iPhonie: „Udostępnij” → „Drukuj”.</div>
+<div id="archModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60">
+  <div style="background:#fff;max-width:560px;margin:7vh auto 0;border-radius:12px;max-height:82vh;display:flex;flex-direction:column;overflow:hidden;width:calc(100% - 24px);box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dark);color:#fff">
+      <b>📋 Zapisane zlecenia</b>
+      <button type="button" id="archModalClose" style="border:none;background:none;color:#fff;font-size:24px;cursor:pointer;padding:0 4px">✕</button>
+    </div>
+    <div id="archModalList" style="overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+</div>
 <div id="toast"></div>
 </div>
 </div>
@@ -629,20 +646,43 @@ function handleDecoded(rawText) {
   catch (e) { setStatus("✖ " + e.message, "err"); return false; }
 }
 
-/* ==================== SKANOWANIE — zdjęcie ==================== */
-function libReady() {
-  if (typeof Html5Qrcode === "undefined") {
-    setStatus("✖ Nie załadowała się biblioteka skanera (brak internetu przy otwieraniu strony?). Połącz się z siecią i odśwież stronę — dalsze skanowanie działa już lokalnie.", "err");
-    return false;
+/* ==================== SKANER (ZXing-WASM) ==================== */
+let zxMod = null, zxTried = false, zxSource = "";
+async function loadZx() {
+  if (zxMod || zxTried) return zxMod;
+  zxTried = true;
+  const sources = [
+    ["./zxing-reader.js", "local"],
+    ["https://cdn.jsdelivr.net/npm/zxing-wasm@3/dist/es/reader/index.js", "cdn"],
+    ["https://unpkg.com/zxing-wasm@3/dist/es/reader/index.js", "cdn"]
+  ];
+  for (const [u, kind] of sources) {
+    try {
+      const m = await import(u);
+      if (m && m.readBarcodes) {
+        if (kind === "local" && m.prepareZXingModule) {
+          try { m.prepareZXingModule({ overrides: { locateFile: pth => pth } }); } catch (e) {}
+        }
+        zxMod = m; zxSource = kind;
+        return zxMod;
+      }
+    } catch (e) {}
   }
-  return true;
+  return null;
 }
-
-let fileScanner = null;
-function getFileScanner() {
-  if (!fileScanner) fileScanner = new Html5Qrcode("reader", {
-    formatsToSupport: [Html5QrcodeSupportedFormats.AZTEC], verbose: false });
-  return fileScanner;
+function engineNote() {
+  const el = $("engineInfo");
+  if (!el) return;
+  if (zxMod && zxSource === "local") { el.textContent = "Silnik skanera: wbudowany ✔ (działa też offline)"; el.style.color = "var(--ok)"; }
+  else if (zxMod) { el.textContent = "Silnik skanera: pobrany z internetu ✔ — dograj do repozytorium pliki zxing-reader.js i zxing_reader.wasm, aby działał również offline"; el.style.color = "#7a5c00"; }
+  else { el.textContent = "✖ Silnik skanera NIEDOSTĘPNY — w repozytorium (obok index.html) muszą być pliki zxing-reader.js i zxing_reader.wasm. Skanowanie nie zadziała."; el.style.color = "#b71c1c"; }
+}
+async function zxRead(input) {
+  if (!zxMod) { await loadZx(); engineNote(); }
+  if (!zxMod) return null;
+  const opts = { formats: ["Aztec"], tryHarder: true, tryRotate: true, tryInvert: true, maxNumberOfSymbols: 1 };
+  const res = await zxMod.readBarcodes(input, opts);
+  return (res && res.length && res[0].text) ? res[0].text : null;
 }
 
 function fileToImage(file) {
@@ -654,7 +694,6 @@ function fileToImage(file) {
     img.src = url;
   });
 }
-
 async function makeVariant(file, maxDim, enhance) {
   const { img, url } = await fileToImage(file);
   let w = img.naturalWidth, h = img.naturalHeight;
@@ -670,80 +709,30 @@ async function makeVariant(file, maxDim, enhance) {
   return new File([blob], "scan.png", { type: "image/png" });
 }
 
-/* Główny silnik: ZXing-WASM (zxing-cpp) — dużo skuteczniejszy przy gęstych
-   kodach Aztec z dowodów rejestracyjnych. html5-qrcode zostaje jako zapas. */
-let zxMod = null, zxTried = false;
-async function loadZx() {
-  if (zxMod || zxTried) return zxMod;
-  zxTried = true;
-  /* 1) silnik lokalny z repozytorium (działa też offline), 2-3) zapasowo CDN */
-  const sources = [
-    "./zxing-reader.js",
-    "https://cdn.jsdelivr.net/npm/zxing-wasm@3/dist/es/reader/index.js",
-    "https://unpkg.com/zxing-wasm@3/dist/es/reader/index.js"
-  ];
-  for (const u of sources) {
-    try {
-      const m = await import(u);
-      if (m && m.readBarcodes) {
-        if (u.startsWith("./") && m.prepareZXingModule) {
-          try { m.prepareZXingModule({ overrides: { locateFile: pth => pth } }); } catch (e) {}
-        }
-        zxMod = m;
-        return zxMod;
-      }
-    } catch (e) {}
-  }
-  return null;
-}
-async function zxRead(fileOrBlob) {
-  const m = await loadZx();
-  if (!m) return null;
-  const fn = m.readBarcodes || m.readBarcodesFromImageFile;
-  if (!fn) return null;
-  const opts = { formats: ["Aztec"], tryHarder: true, tryRotate: true, tryInvert: true, maxNumberOfSymbols: 1 };
-  const res = await fn(fileOrBlob, opts);
-  if (res && res.length && res[0].text) return res[0].text;
-  return null;
-}
-
 async function scanPhoto(file) {
   await stopLive();
+  await loadZx(); engineNote();
+  if (!zxMod) {
+    setStatus("✖ Silnik skanera niedostępny. Sprawdź, czy w repozytorium GitHub obok index.html znajdują się pliki zxing-reader.js oraz zxing_reader.wasm, i czy telefon ma internet.", "err");
+    return;
+  }
   const plans = [
     { make: async () => file },
-    { make: () => makeVariant(file, 2200, false) },
-    { make: () => makeVariant(file, 1500, false) },
-    { make: () => makeVariant(file, 3000, false) },
-    { make: () => makeVariant(file, 1700, true) },
-    { make: () => makeVariant(file, 1000, false) },
+    { make: () => makeVariant(file, 2400, false) },
+    { make: () => makeVariant(file, 1600, false) },
+    { make: () => makeVariant(file, 3200, false) },
+    { make: () => makeVariant(file, 1800, true) },
+    { make: () => makeVariant(file, 1100, false) },
   ];
-  const total = plans.length;
-  /* runda 1: ZXing-WASM */
-  for (let i = 0; i < total; i++) {
-    setStatus("Analizuję zdjęcie… (" + (i + 1) + "/" + total + ")", "info");
+  for (let i = 0; i < plans.length; i++) {
+    setStatus("Analizuję zdjęcie… (" + (i + 1) + "/" + plans.length + ")", "info");
     try {
       const f = await plans[i].make();
       const txt = await zxRead(f);
       if (txt) { handleDecoded(txt); return; }
     } catch (e) {}
   }
-  /* runda 2: zapasowo html5-qrcode */
-  if (typeof Html5Qrcode !== "undefined") {
-    const scanner = getFileScanner();
-    for (let i = 0; i < total; i++) {
-      setStatus("Analizuję zdjęcie, drugi silnik… (" + (i + 1) + "/" + total + ")", "info");
-      try {
-        const f = await plans[i].make();
-        const res = await scanner.scanFileV2(f, false);
-        if (res && res.decodedText) { handleDecoded(res.decodedText); return; }
-      } catch (e) {}
-    }
-  }
-  if (!zxMod && typeof Html5Qrcode === "undefined") {
-    setStatus("✖ Nie załadowały się biblioteki skanera — sprawdź połączenie z internetem i odśwież stronę.", "err");
-    return;
-  }
-  setStatus("✖ Nie udało się odczytać kodu Aztec z tego zdjęcia. Najskuteczniej: wyjmij dowód z folii, połóż płasko przy oknie (światło dzienne, bez lampy błyskowej), trzymaj telefon równolegle 10–15 cm nad kodem i zrób zdjęcie tak, by SAM duży kwadratowy kod wypełniał prawie cały kadr, ostro. Spróbuj 2–3 razy — każde zdjęcie jest analizowane 12 sposobami.", "err");
+  setStatus("✖ Nie udało się odczytać kodu Aztec z tego zdjęcia. Najskuteczniej: wyjmij dowód z folii, połóż płasko przy świetle dziennym (bez lampy błyskowej i odblasków), trzymaj telefon równolegle 10–15 cm nad kodem i zrób ostre zdjęcie tak, by SAM duży kwadratowy kod wypełniał prawie cały kadr. Możesz też użyć przycisku „Skanuj kamerą na żywo”.", "err");
 }
 
 $("fileInput").addEventListener("change", ev => {
@@ -752,39 +741,64 @@ $("fileInput").addEventListener("change", ev => {
   ev.target.value = "";
 });
 
-/* ==================== SKANOWANIE — kamera na żywo ==================== */
-let liveScanner = null, liveOn = false;
+/* ---------- kamera na żywo: własna pętla dekodująca ---------- */
+let liveStream = null, liveTimer = null, liveVideo = null, liveBusy = false;
 const liveSupported = () =>
   (window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
 async function startLive() {
-  if (!libReady()) return;
-  try {
-    if (!liveScanner) liveScanner = new Html5Qrcode("reader", {
-      formatsToSupport: [Html5QrcodeSupportedFormats.AZTEC], verbose: false });
-    $("reader").style.display = "block";
-    $("liveStop").style.display = "inline-block";
-    setStatus("Kamera uruchomiona — wyceluj w duży kwadratowy kod z dowodu rejestracyjnego.", "info");
-    liveOn = true;
-    loadZx();
-    await liveScanner.start(
-      { facingMode: "environment" },
-      { fps: 6, qrbox: { width: 300, height: 300 } },
-      txt => { stopLive().then(() => handleDecoded(txt)); },
-      () => {}
-    );
-  } catch (e) {
-    liveOn = false;
-    $("reader").style.display = "none";
-    $("liveStop").style.display = "none";
-    setStatus("✖ Nie udało się uruchomić kamery (" + (e && e.message ? e.message : e) + "). Użyj przycisku „Zdjęcie kodu Aztec”.", "err");
+  await loadZx(); engineNote();
+  if (!zxMod) {
+    setStatus("✖ Silnik skanera niedostępny — sprawdź pliki zxing-reader.js i zxing_reader.wasm w repozytorium.", "err");
+    return;
   }
+  try {
+    liveStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+  } catch (e) {
+    setStatus("✖ Brak dostępu do kamery (" + ((e && e.name) || e) + "). Zezwól tej stronie na użycie kamery: Ustawienia iPhone’a → Aplikacje → Safari → Kamera, lub ikona „Aa” w pasku adresu → Ustawienia witryny.", "err");
+    return;
+  }
+  const reader = $("reader");
+  reader.style.display = "block";
+  reader.innerHTML = '<video id="liveVideo" playsinline autoplay muted style="width:100%;border-radius:10px;background:#000"></video>' +
+    '<div class="hint" style="text-align:center;margin-top:6px">Wyceluj w duży kwadratowy kod z bliska (10–15 cm) i poczekaj chwilę na ostrość — odczyt nastąpi sam</div>';
+  liveVideo = document.getElementById("liveVideo");
+  liveVideo.srcObject = liveStream;
+  try { await liveVideo.play(); } catch (e) {}
+  $("liveStop").style.display = "inline-block";
+  setStatus("Kamera działa — skanuję na bieżąco…", "info");
+  const cv = document.createElement("canvas");
+  const cx = cv.getContext("2d", { willReadFrequently: true });
+  liveTimer = setInterval(async () => {
+    if (liveBusy || !liveVideo || liveVideo.readyState < 2) return;
+    liveBusy = true;
+    try {
+      const vw = liveVideo.videoWidth, vh = liveVideo.videoHeight;
+      if (vw && vh) {
+        const side = Math.min(vw, vh);
+        const sx = (vw - side) / 2, sy = (vh - side) / 2;
+        const out = Math.min(1280, side);
+        cv.width = out; cv.height = out;
+        cx.drawImage(liveVideo, sx, sy, side, side, 0, 0, out, out);
+        const txt = await zxRead(cx.getImageData(0, 0, out, out));
+        if (txt) {
+          await stopLive();
+          if (navigator.vibrate) navigator.vibrate(80);
+          handleDecoded(txt);
+        }
+      }
+    } catch (e) {}
+    liveBusy = false;
+  }, 350);
 }
 async function stopLive() {
-  if (liveScanner && liveOn) {
-    try { await liveScanner.stop(); liveScanner.clear(); } catch (e) {}
-  }
-  liveOn = false;
+  if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+  if (liveStream) { try { liveStream.getTracks().forEach(t => t.stop()); } catch (e) {} liveStream = null; }
+  liveVideo = null; liveBusy = false;
+  $("reader").innerHTML = "";
   $("reader").style.display = "none";
   $("liveStop").style.display = "none";
 }
@@ -902,7 +916,9 @@ function plKwota(raw) {
 
 function setupDictation(btnId, targetId, mode, transform) {
   const btn = $(btnId), target = $(targetId);
-  if (!SR || !window.isSecureContext) {
+  if (!SR || !window.isSecureContext || navigator.standalone === true) {
+    /* w trybie „ikony z ekranu początkowego” iOS blokuje rozpoznawanie mowy Safari —
+       przechodzimy od razu na dyktowanie klawiaturą */
     btn.addEventListener("click", () => dictationFallback(target));
     return;
   }
@@ -927,7 +943,8 @@ function setupDictation(btnId, targetId, mode, transform) {
       }
       scheduleDraft();
     };
-    rec.onstart = () => { active = true; btn.classList.add("rec"); btn.textContent = btn.textContent.replace("🎤", "⏺"); };
+    let startedFlag = false;
+    rec.onstart = () => { startedFlag = true; active = true; btn.classList.add("rec"); btn.textContent = btn.textContent.replace("🎤", "⏺"); };
     rec.onend = () => { active = false; btn.classList.remove("rec"); btn.textContent = btn.textContent.replace("⏺", "🎤"); };
     rec.onerror = e => {
       active = false; btn.classList.remove("rec"); btn.textContent = btn.textContent.replace("⏺", "🎤");
@@ -937,7 +954,10 @@ function setupDictation(btnId, targetId, mode, transform) {
         dictationFallback(target);
       }
     };
-    try { rec.start(); } catch (err) { dictationFallback(target); }
+    try { rec.start(); } catch (err) { dictationFallback(target); return; }
+    setTimeout(() => {
+      if (!startedFlag) { try { rec.abort(); } catch (e) {} dictationFallback(target); }
+    }, 1600);
   });
 }
 
@@ -1013,6 +1033,7 @@ function getFormData() {
   CHK_IDS.forEach(id => d[id] = $(id).checked);
   const t = document.querySelector("input[name=tytul]:checked");
   d.tytul = t ? t.value : "";
+  if (d.f_koszt) d.f_koszt = plKwota(d.f_koszt);
   const z = document.querySelector("input[name=odb_zwrot]:checked");
   d.odb_zwrot = z ? z.value : "";
   d.podpis = sig1.isEmpty() ? "" : sig1.toDataURL();
@@ -1122,10 +1143,14 @@ function resetForm() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-$("f_koszt").addEventListener("blur", () => {
+function normalizeKoszt() {
   const v = $("f_koszt").value.trim();
-  if (v && !/^[\d\s.,]+(zł)?$/i.test(v)) { $("f_koszt").value = plKwota(v); scheduleDraft(); }
-});
+  if (!v) return;
+  const out = plKwota(v);
+  if (out !== v) { $("f_koszt").value = out; scheduleDraft(); }
+}
+$("f_koszt").addEventListener("blur", normalizeKoszt);
+$("f_koszt").addEventListener("change", normalizeKoszt);
 $("saveBtn").addEventListener("click", () => saveOrder(false));
 $("newBtn").addEventListener("click", () => {
   if (confirm("Rozpocząć nowe zlecenie? Niezapisane zmiany w formularzu zostaną utracone.")) resetForm();
@@ -1137,7 +1162,34 @@ function fmtDate(rec) {
   const g = (rec.data && rec.data.f_godz) || "";
   return [d, g].filter(Boolean).join(" ");
 }
+function renderTopList() {
+  const list = loadAll().slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  $("topArchCount").textContent = list.length;
+  $("archModalList").innerHTML = list.length ? list.map(r => {
+    const d = r.data || {};
+    const status = (d.podpis2 || d.f_odb_data) ? " · ✅ odebrane" : (d.podpis ? " · ✍ przyjęte" : "");
+    return '<div class="arch-item mrow" data-id="' + r.id + '">' +
+      '<div class="row1"><b>' + escHtml(d.f_klient || "(bez nazwiska)") + '</b>' +
+      '<span class="meta" style="font-weight:bold;color:var(--dark);font-size:14px">' + escHtml(d.f_rej || "—") + '</span></div>' +
+      '<div class="meta">' + escHtml(d.f_nr || "") + ' · ' + escHtml(fmtDate(r)) + status + '</div></div>';
+  }).join("") : '<div class="arch-empty">Brak zapisanych zleceń.</div>';
+}
+$("topArch").addEventListener("click", () => { renderTopList(); $("archModal").style.display = "block"; });
+$("archModalClose").addEventListener("click", () => $("archModal").style.display = "none");
+$("archModal").addEventListener("click", ev => { if (ev.target.id === "archModal") $("archModal").style.display = "none"; });
+$("archModalList").addEventListener("click", ev => {
+  const it = ev.target.closest(".mrow");
+  if (!it) return;
+  const rec = loadAll().find(r => r.id === it.dataset.id);
+  if (!rec) return;
+  setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
+  $("archModal").style.display = "none";
+  toast("Otwarto zlecenie " + (rec.data.f_nr || ""));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
 function renderArch() {
+  renderTopList();
   const q = ($("archSearch").value || "").trim().toLowerCase();
   const list = loadAll().slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   const el = $("archList");
@@ -1359,7 +1411,7 @@ async function searchIC(partName) {
 
 /* ==================== GŁOS — uniwersalne dyktowanie ==================== */
 function startVoice(target, onDone) {
-  if (!SR || !window.isSecureContext) { dictationFallback(target); return; }
+  if (!SR || !window.isSecureContext || navigator.standalone === true) { dictationFallback(target); return; }
   let rec;
   try { rec = new SR(); } catch (e) { dictationFallback(target); return; }
   rec.lang = "pl-PL";
@@ -1387,7 +1439,13 @@ function startVoice(target, onDone) {
     target.classList.remove("scanned");
     if (e.error !== "aborted" && e.error !== "no-speech") dictationFallback(target);
   };
-  try { rec.start(); } catch (e) { dictationFallback(target); }
+  let svStarted = false;
+  const oldOnStart = rec.onstart;
+  rec.onstart = () => { svStarted = true; if (oldOnStart) oldOnStart(); };
+  try { rec.start(); } catch (e) { dictationFallback(target); return; }
+  setTimeout(() => {
+    if (!svStarted) { try { rec.abort(); } catch (e) {} target.classList.remove("scanned"); dictationFallback(target); }
+  }, 1600);
 }
 
 $("partVoice").addEventListener("click", () => {
@@ -1493,6 +1551,7 @@ function shareOrder(rec) {
   sig1.resize(); sig2.resize();
   if (!storageOK) $("storWarn").style.display = "block";
   if (liveSupported()) $("liveBtn").style.display = "inline-block";
+  loadZx().then(engineNote);
   $("f_nr").value = newOrderNumber();
   renderArch();
   const draft = loadDraft();
