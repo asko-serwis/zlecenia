@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ASKO Zlecenia">
 <meta name="theme-color" content="#E07B00">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <title>ASKO — Asystent zlecenia naprawy</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
@@ -302,8 +305,38 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   </div>
 </div>
 
+<div class="card" id="odbCard">
+  <h2><span class="num">9</span> ODBIÓR POJAZDU <span class="badge-saved" id="odbBadge" style="display:none">odebrane</span></h2>
+  <div class="body">
+    <div class="grid g3">
+      <div><label class="f">Data odbioru</label><input type="date" id="f_odb_data"></div>
+      <div><label class="f">Godzina odbioru</label><input type="time" id="f_odb_godz"></div>
+      <div><label class="f">Zwrot wymienionych części</label>
+        <div class="checks" style="margin-top:9px">
+          <label><input type="radio" name="odb_zwrot" value="tak"> TAK</label>
+          <label><input type="radio" name="odb_zwrot" value="nie"> NIE (utylizacja)</label>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="btn btn-grey" id="odbNow" style="margin-top:10px">🕒 Ustaw teraz</button>
+    <div style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <label class="f" style="margin:0">Wykonane prace / uwagi warsztatu</label>
+        <button type="button" class="micbtn" id="mic_prace" title="Dyktuj">🎤 Dyktuj</button>
+      </div>
+      <textarea id="f_prace" rows="4" placeholder="Co zostało wykonane — wydrukuje się w sekcji „Wykonane prace” na 2 stronie zlecenia"></textarea>
+    </div>
+    <div class="sub" style="margin-top:12px"><b>Podpis klienta przy odbiorze</b> — klient potwierdza wykonanie prac i odbiór pojazdu (treść pokwitowania jest na 2 stronie wydruku, podpis trafi na linię „odbierającego pojazd”).</div>
+    <canvas id="sigPad2" style="width:100%;height:170px;border:2px dashed var(--border);border-radius:8px;touch-action:none;background:#fff;margin-top:6px"></canvas>
+    <div style="display:flex;gap:10px;margin-top:8px;align-items:center">
+      <button type="button" class="btn btn-grey" id="sigClear2">Wyczyść podpis</button>
+      <span class="hint" id="sigInfo2" style="margin:0">Brak podpisu odbioru</span>
+    </div>
+  </div>
+</div>
+
 <div class="card">
-  <h2><span class="num">9</span> ZAPISANE ZLECENIA</h2>
+  <h2><span class="num">10</span> ZAPISANE ZLECENIA</h2>
   <div class="body">
     <div id="storWarn">⚠ Pamięć przeglądarki jest niedostępna (tryb prywatny lub podgląd) — zlecenia będą pamiętane tylko do zamknięcia strony. Otwórz aplikację w Safari w zwykłym oknie.</div>
     <div class="grid g2">
@@ -421,13 +454,13 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   </table>
 
   <div class="p-sec"><span class="n">7</span><span class="t">WYKONANE PRACE / UWAGI WARSZTATU</span></div>
-  <div class="p-box" style="min-height:70pt"></div>
+  <div class="p-box" style="min-height:70pt" id="p_prace"></div>
 
   <div class="p-sec"><span class="n">8</span><span class="t">POKWITOWANIE ODBIORU POJAZDU</span></div>
   <div style="font-size:8.6pt;line-height:1.4">Potwierdzam wykonanie prac w zleconym zakresie oraz kwituję odbiór pojazdu — kompletnego, bez nowych uszkodzeń, wraz z wyposażeniem, kluczykami i dokumentami. Sprawdziłem/-am działanie pojazdu w zakresie wykonanej naprawy i nie wnoszę zastrzeżeń.<br>
-  Otrzymałem/-am zwrot wymienionych części: &nbsp;☐ TAK &nbsp;&nbsp; ☐ NIE (zgoda na utylizację)</div>
+  Otrzymałem/-am zwrot wymienionych części: <span id="p_zwrot">&nbsp;☐ TAK &nbsp;&nbsp; ☐ NIE (zgoda na utylizację)</span></div>
   <div class="p-signs" style="margin-top:26px">
-    <div class="s"><div class="line"></div><div class="cap">data i podpis odbierającego pojazd</div></div>
+    <div class="s"><div class="line" style="position:relative"><span id="p_odb_data" style="position:absolute;left:0;bottom:2pt;font-size:8pt;color:#1f1f1f"></span><img id="p_podpis2" src="" alt="" style="display:none;position:absolute;bottom:-2pt;left:50%;transform:translateX(-50%);height:44pt;max-width:70%"></div><div class="cap">data i podpis odbierającego pojazd</div></div>
     <div class="s"><div class="line"></div><div class="cap">data i podpis wydającego pojazd</div></div>
   </div>
   <div class="p-footer">ASKO Krzysztof Skowron &nbsp;·&nbsp; ul. Galicyjska 2b, 32-300 Niesułowice &nbsp;·&nbsp; NIP 6371525533 &nbsp;·&nbsp; str. 2/2</div>
@@ -637,27 +670,70 @@ async function makeVariant(file, maxDim, enhance) {
   return new File([blob], "scan.png", { type: "image/png" });
 }
 
-async function scanPhoto(file) {
-  if (!libReady()) return;
-  await stopLive();
-  const scanner = getFileScanner();
-  const plans = [
-    { label: "oryginał", make: async () => file },
-    { label: "1600 px", make: () => makeVariant(file, 1600, false) },
-    { label: "2400 px", make: () => makeVariant(file, 2400, false) },
-    { label: "1100 px", make: () => makeVariant(file, 1100, false) },
-    { label: "kontrast", make: () => makeVariant(file, 1700, true) },
+/* Główny silnik: ZXing-WASM (zxing-cpp) — dużo skuteczniejszy przy gęstych
+   kodach Aztec z dowodów rejestracyjnych. html5-qrcode zostaje jako zapas. */
+let zxMod = null, zxTried = false;
+async function loadZx() {
+  if (zxMod || zxTried) return zxMod;
+  zxTried = true;
+  const urls = [
+    "https://cdn.jsdelivr.net/npm/zxing-wasm@2/dist/reader/index.js",
+    "https://cdn.jsdelivr.net/npm/zxing-wasm@1/dist/reader/index.js",
+    "https://unpkg.com/zxing-wasm@2/dist/reader/index.js"
   ];
-  for (let i = 0; i < plans.length; i++) {
-    setStatus("Analizuję zdjęcie… (próba " + (i + 1) + " z " + plans.length + ")", "info");
+  for (const u of urls) {
+    try { zxMod = await import(u); if (zxMod) return zxMod; } catch (e) {}
+  }
+  return null;
+}
+async function zxRead(fileOrBlob) {
+  const m = await loadZx();
+  if (!m) return null;
+  const fn = m.readBarcodes || m.readBarcodesFromImageFile;
+  if (!fn) return null;
+  const opts = { formats: ["Aztec"], tryHarder: true, tryRotate: true, tryInvert: true, maxNumberOfSymbols: 1 };
+  const res = await fn(fileOrBlob, opts);
+  if (res && res.length && res[0].text) return res[0].text;
+  return null;
+}
+
+async function scanPhoto(file) {
+  await stopLive();
+  const plans = [
+    { make: async () => file },
+    { make: () => makeVariant(file, 2200, false) },
+    { make: () => makeVariant(file, 1500, false) },
+    { make: () => makeVariant(file, 3000, false) },
+    { make: () => makeVariant(file, 1700, true) },
+    { make: () => makeVariant(file, 1000, false) },
+  ];
+  const total = plans.length;
+  /* runda 1: ZXing-WASM */
+  for (let i = 0; i < total; i++) {
+    setStatus("Analizuję zdjęcie… (" + (i + 1) + "/" + total + ")", "info");
     try {
       const f = await plans[i].make();
-      const res = await scanner.scanFileV2(f, false);
-      if (handleDecoded(res.decodedText)) return;
-      return; // zdekodowano kod, ale payload błędny — komunikat już wyświetlony
-    } catch (e) { /* próbuj dalej */ }
+      const txt = await zxRead(f);
+      if (txt) { handleDecoded(txt); return; }
+    } catch (e) {}
   }
-  setStatus("✖ Nie udało się odczytać kodu Aztec z tego zdjęcia. Wskazówki: wyjmij dowód z folii, sfotografuj SAM duży kwadratowy kod (żeby wypełniał większość kadru), przy dobrym świetle, bez odblasków, trzymając telefon prosto. Spróbuj ponownie.", "err");
+  /* runda 2: zapasowo html5-qrcode */
+  if (typeof Html5Qrcode !== "undefined") {
+    const scanner = getFileScanner();
+    for (let i = 0; i < total; i++) {
+      setStatus("Analizuję zdjęcie, drugi silnik… (" + (i + 1) + "/" + total + ")", "info");
+      try {
+        const f = await plans[i].make();
+        const res = await scanner.scanFileV2(f, false);
+        if (res && res.decodedText) { handleDecoded(res.decodedText); return; }
+      } catch (e) {}
+    }
+  }
+  if (!zxMod && typeof Html5Qrcode === "undefined") {
+    setStatus("✖ Nie załadowały się biblioteki skanera — sprawdź połączenie z internetem i odśwież stronę.", "err");
+    return;
+  }
+  setStatus("✖ Nie udało się odczytać kodu Aztec z tego zdjęcia. Najskuteczniej: wyjmij dowód z folii, połóż płasko przy oknie (światło dzienne, bez lampy błyskowej), trzymaj telefon równolegle 10–15 cm nad kodem i zrób zdjęcie tak, by SAM duży kwadratowy kod wypełniał prawie cały kadr, ostro. Spróbuj 2–3 razy — każde zdjęcie jest analizowane 12 sposobami.", "err");
 }
 
 $("fileInput").addEventListener("change", ev => {
@@ -680,9 +756,10 @@ async function startLive() {
     $("liveStop").style.display = "inline-block";
     setStatus("Kamera uruchomiona — wyceluj w duży kwadratowy kod z dowodu rejestracyjnego.", "info");
     liveOn = true;
+    loadZx();
     await liveScanner.start(
       { facingMode: "environment" },
-      { fps: 6, qrbox: { width: 280, height: 280 } },
+      { fps: 6, qrbox: { width: 300, height: 300 } },
       txt => { stopLive().then(() => handleDecoded(txt)); },
       () => {}
     );
@@ -748,8 +825,19 @@ function printDoc() {
   }
   $("p_parts_body").innerHTML = ptr;
   const sigImg = document.getElementById("p_podpis");
-  if (!sigEmpty) { sigImg.src = sigCanvas.toDataURL("image/png"); sigImg.style.display = "block"; }
+  if (!sig1.isEmpty()) { sigImg.src = sig1.toDataURL(); sigImg.style.display = "block"; }
   else { sigImg.style.display = "none"; }
+  /* strona 2 — odbiór */
+  $("p_prace").textContent = txt($("f_prace").value);
+  const zw = document.querySelector("input[name=odb_zwrot]:checked");
+  $("p_zwrot").innerHTML = "&nbsp;" + (zw && zw.value === "tak" ? "☒" : "☐") + " TAK &nbsp;&nbsp; " +
+    (zw && zw.value === "nie" ? "☒" : "☐") + " NIE (zgoda na utylizację)";
+  $("p_odb_data").textContent =
+    ($("f_odb_data").value ? $("f_odb_data").value.split("-").reverse().join(".") : "") +
+    ($("f_odb_godz").value ? " godz. " + $("f_odb_godz").value : "");
+  const sigImg2 = document.getElementById("p_podpis2");
+  if (!sig2.isEmpty()) { sigImg2.src = sig2.toDataURL(); sigImg2.style.display = "block"; }
+  else { sigImg2.style.display = "none"; }
   window.print();
 }
 
@@ -761,7 +849,48 @@ function dictationFallback(target) {
   setStatus("ℹ " + msg, "info");
   toast("🎤 Użyj mikrofonu na klawiaturze iPhone'a");
 }
-function setupDictation(btnId, targetId, mode) {
+/* Zamiana polskich liczebników na kwotę cyframi, np.
+   "tysiąc pięćset złotych" -> 1500, "dwieście pięćdziesiąt zł 50 groszy" -> 250,50 */
+function plKwota(raw) {
+  let t = String(raw).toLowerCase()
+    .replace(/(\d)[.,](\d)/g, "$1_kropka_$2")
+    .replace(/[^a-ząćęłńóśźż0-9_\s]/g, " ");
+  const U = {"zero":0,"jeden":1,"jedna":1,"jedno":1,"dwa":2,"dwie":2,"trzy":3,"cztery":4,"pięć":5,"piec":5,
+    "sześć":6,"szesc":6,"siedem":7,"osiem":8,"dziewięć":9,"dziewiec":9,
+    "dziesięć":10,"dziesiec":10,"jedenaście":11,"dwanaście":12,"trzynaście":13,"czternaście":14,"piętnaście":15,
+    "szesnaście":16,"siedemnaście":17,"osiemnaście":18,"dziewiętnaście":19,
+    "dwadzieścia":20,"trzydzieści":30,"czterdzieści":40,"pięćdziesiąt":50,"piecdziesiat":50,
+    "sześćdziesiąt":60,"szescdziesiat":60,"siedemdziesiąt":70,"osiemdziesiąt":80,"dziewięćdziesiąt":90,
+    "sto":100,"dwieście":200,"dwiescie":200,"trzysta":300,"czterysta":400,"pięćset":500,"piecset":500,
+    "sześćset":600,"szescset":600,"siedemset":700,"osiemset":800,"dziewięćset":900};
+  const K = {"tysiąc":1000,"tysiac":1000,"tysiące":1000,"tysiace":1000,"tysięcy":1000,"tysiecy":1000,
+    "milion":1000000,"miliony":1000000,"milionów":1000000};
+  let cur = 0, tot = 0, zl = null, gr = null, any = false;
+  const flush = () => { const v = tot + cur; cur = 0; tot = 0; return v; };
+  for (const w of t.split(/\s+/)) {
+    if (!w) continue;
+    if (/^\d+$/.test(w)) { cur += parseInt(w, 10); any = true; continue; }
+    if (/^\d+_kropka_\d+$/.test(w)) {
+      const [a, b] = w.split("_kropka_");
+      zl = (zl == null ? 0 : zl) + flush() + parseInt(a, 10);
+      gr = parseInt(b.slice(0, 2).padEnd(2, "0"), 10);
+      any = true; continue;
+    }
+    if (w in U) { cur += U[w]; any = true; continue; }
+    if (w in K) { tot += (cur || 1) * K[w]; cur = 0; any = true; continue; }
+    if (/^złot/.test(w) || /^zlot/.test(w) || w === "zł" || w === "zl") { zl = (zl == null ? 0 : zl) + flush(); continue; }
+    if (/^grosz/.test(w)) { gr = (gr == null ? 0 : gr) + flush(); continue; }
+  }
+  const rest = flush();
+  if (zl == null) zl = rest;
+  else if (rest) { if (gr == null) gr = rest; else zl += rest; }
+  if (!any) return String(raw).trim();
+  let out = String(zl);
+  if (gr) out += "," + String(gr).padStart(2, "0");
+  return out;
+}
+
+function setupDictation(btnId, targetId, mode, transform) {
   const btn = $(btnId), target = $(targetId);
   if (!SR || !window.isSecureContext) {
     btn.addEventListener("click", () => dictationFallback(target));
@@ -784,7 +913,7 @@ function setupDictation(btnId, targetId, mode) {
         target.value = (target.value ? target.value.replace(/\s+$/, "") + " " : "") +
           text.charAt(0).toUpperCase() + text.slice(1);
       } else {
-        target.value = text;
+        target.value = transform ? transform(text) : text;
       }
       scheduleDraft();
     };
@@ -802,61 +931,70 @@ function setupDictation(btnId, targetId, mode) {
   });
 }
 
-/* ==================== PODPIS KLIENTA ==================== */
-const sigCanvas = document.getElementById("sigPad");
-let sigCtx = null, sigEmpty = true, drawing = false;
-function sigResize() {
-  const prev = sigEmpty ? null : sigCanvas.toDataURL();
-  const r = sigCanvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  sigCanvas.width = r.width * dpr; sigCanvas.height = r.height * dpr;
-  sigCtx = sigCanvas.getContext("2d");
-  sigCtx.scale(dpr, dpr);
-  sigCtx.lineWidth = 2.4; sigCtx.lineCap = "round"; sigCtx.lineJoin = "round"; sigCtx.strokeStyle = "#1a237e";
-  if (prev) { const img = new Image(); img.onload = () => sigCtx.drawImage(img, 0, 0, r.width, r.height); img.src = prev; }
-}
-function sigPos(ev) {
-  const r = sigCanvas.getBoundingClientRect();
-  return { x: ev.clientX - r.left, y: ev.clientY - r.top };
-}
-function sigMarkFilled() {
-  if (sigEmpty) { sigEmpty = false; $("sigInfo").textContent = "✔ Podpis złożony — trafi na wydruk i do archiwum"; $("sigInfo").style.color = "var(--ok)"; }
-}
-function sigClearAll() {
-  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-  sigEmpty = true; $("sigInfo").textContent = "Brak podpisu"; $("sigInfo").style.color = "";
-}
-function sigSet(dataUrl) {
-  sigClearAll();
-  if (dataUrl) {
-    const img = new Image();
-    img.onload = () => {
-      const r = sigCanvas.getBoundingClientRect();
-      sigCtx.drawImage(img, 0, 0, r.width, r.height);
-    };
-    img.src = dataUrl;
-    sigMarkFilled();
+/* ==================== PODPISY (przyjęcie i odbiór) ==================== */
+function makeSigPad(canvasId, infoId, clearBtnId, filledMsg, emptyMsg) {
+  const canvas = document.getElementById(canvasId);
+  let ctx = null, empty = true, drawing = false;
+  function resize() {
+    const prev = empty ? null : canvas.toDataURL();
+    const r = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = r.width * dpr; canvas.height = r.height * dpr;
+    ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2.4; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#1a237e";
+    if (prev) { const img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0, r.width, r.height); img.src = prev; }
   }
+  function pos(ev) { const r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; }
+  function markFilled() {
+    if (empty) { empty = false; $(infoId).textContent = filledMsg; $(infoId).style.color = "var(--ok)"; }
+  }
+  function clearAll() {
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    empty = true; $(infoId).textContent = emptyMsg; $(infoId).style.color = "";
+  }
+  function set(dataUrl) {
+    clearAll();
+    if (dataUrl) {
+      const img = new Image();
+      img.onload = () => { const r = canvas.getBoundingClientRect(); ctx.drawImage(img, 0, 0, r.width, r.height); };
+      img.src = dataUrl;
+      markFilled();
+    }
+  }
+  canvas.addEventListener("pointerdown", ev => {
+    ev.preventDefault();
+    drawing = true; canvas.setPointerCapture(ev.pointerId);
+    const p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  });
+  canvas.addEventListener("pointermove", ev => {
+    if (!drawing) return;
+    const p = pos(ev); ctx.lineTo(p.x, p.y); ctx.stroke();
+    markFilled();
+  });
+  ["pointerup", "pointercancel"].forEach(e => canvas.addEventListener(e, () => {
+    if (drawing) { drawing = false; scheduleDraft(); }
+  }));
+  $(clearBtnId).addEventListener("click", () => { clearAll(); scheduleDraft(); });
+  return { resize, set, clear: clearAll, isEmpty: () => empty, toDataURL: () => canvas.toDataURL("image/png") };
 }
-sigCanvas.addEventListener("pointerdown", ev => {
-  ev.preventDefault();
-  drawing = true; sigCanvas.setPointerCapture(ev.pointerId);
-  const p = sigPos(ev); sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y);
+const sig1 = makeSigPad("sigPad", "sigInfo", "sigClear",
+  "✔ Podpis złożony — trafi na wydruk i do archiwum", "Brak podpisu");
+const sig2 = makeSigPad("sigPad2", "sigInfo2", "sigClear2",
+  "✔ Podpis odbioru złożony — trafi na 2 stronę wydruku", "Brak podpisu odbioru");
+window.addEventListener("resize", () => { sig1.resize(); sig2.resize(); });
+
+$("odbNow").addEventListener("click", () => {
+  const now = new Date(), pp = n => String(n).padStart(2, "0");
+  $("f_odb_data").value = now.toISOString().slice(0, 10);
+  $("f_odb_godz").value = pp(now.getHours()) + ":" + pp(now.getMinutes());
+  scheduleDraft();
 });
-sigCanvas.addEventListener("pointermove", ev => {
-  if (!drawing) return;
-  const p = sigPos(ev); sigCtx.lineTo(p.x, p.y); sigCtx.stroke();
-  sigMarkFilled();
-});
-["pointerup", "pointercancel"].forEach(e => sigCanvas.addEventListener(e, () => {
-  if (drawing) { drawing = false; scheduleDraft(); }
-}));
-$("sigClear").addEventListener("click", () => { sigClearAll(); scheduleDraft(); });
-window.addEventListener("resize", sigResize);
 
 /* ==================== FORMULARZ ↔ DANE ==================== */
 const TXT_IDS = ["f_nr","f_data","f_godz","f_marka","f_model","f_rok","f_przebieg","f_rej","f_vin",
-                 "f_paliwo","f_klient","f_nip","f_adres","f_tel","f_stan","f_usterki","f_koszt","f_termin","w_klucz_szt"];
+                 "f_paliwo","f_klient","f_nip","f_adres","f_tel","f_stan","f_usterki","f_koszt","f_termin","w_klucz_szt",
+                 "f_odb_data","f_odb_godz","f_prace"];
 const CHK_IDS = ["w_dowod","w_klucz","w_kolo","w_gasnica","w_trojkat","w_radio","c_oryg","c_zam","c_uzyw","c_klient"];
 
 function getFormData() {
@@ -865,7 +1003,10 @@ function getFormData() {
   CHK_IDS.forEach(id => d[id] = $(id).checked);
   const t = document.querySelector("input[name=tytul]:checked");
   d.tytul = t ? t.value : "";
-  d.podpis = sigEmpty ? "" : sigCanvas.toDataURL("image/png");
+  const z = document.querySelector("input[name=odb_zwrot]:checked");
+  d.odb_zwrot = z ? z.value : "";
+  d.podpis = sig1.isEmpty() ? "" : sig1.toDataURL();
+  d.podpis2 = sig2.isEmpty() ? "" : sig2.toDataURL();
   d.czesci = getParts();
   return d;
 }
@@ -876,8 +1017,11 @@ function setFormData(d) {
   let hit = false;
   document.querySelectorAll("input[name=tytul]").forEach(r => { r.checked = (r.value === d.tytul); if (r.checked) hit = true; });
   if (!hit) document.querySelector("input[name=tytul]").checked = true;
-  sigSet(d.podpis || "");
+  document.querySelectorAll("input[name=odb_zwrot]").forEach(r => { r.checked = (r.value === d.odb_zwrot); });
+  sig1.set(d.podpis || "");
+  sig2.set(d.podpis2 || "");
   renderParts(d.czesci || []);
+  $("odbBadge").style.display = (d.podpis2 || d.f_odb_data) ? "inline-block" : "none";
 }
 
 /* ==================== PAMIĘĆ ZLECEŃ ==================== */
@@ -968,6 +1112,10 @@ function resetForm() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+$("f_koszt").addEventListener("blur", () => {
+  const v = $("f_koszt").value.trim();
+  if (v && !/^[\d\s.,]+(zł)?$/i.test(v)) { $("f_koszt").value = plKwota(v); scheduleDraft(); }
+});
 $("saveBtn").addEventListener("click", () => saveOrder(false));
 $("newBtn").addEventListener("click", () => {
   if (confirm("Rozpocząć nowe zlecenie? Niezapisane zmiany w formularzu zostaną utracone.")) resetForm();
@@ -1001,9 +1149,10 @@ function renderArch() {
       '<div class="row1"><b>' + escHtml(d.f_nr || "(bez numeru)") + '</b>' +
       '<span class="meta">' + escHtml(fmtDate(r)) + (d.f_klient ? " · " + escHtml(d.f_klient) : "") +
       (auto ? " · " + escHtml(auto) : "") + (d.f_rej ? " · " + escHtml(d.f_rej) : "") +
-      (d.podpis ? " · ✍ podpisane" : "") + "</span></div>" +
+      (d.podpis ? " · ✍ podpisane" : "") + ((d.podpis2 || d.f_odb_data) ? " · ✅ ODEBRANE" : "") + "</span></div>" +
       '<div class="abtns">' +
       '<button type="button" class="abtn open" data-act="open">Otwórz</button>' +
+      ((d.podpis2 || d.f_odb_data) ? '' : '<button type="button" class="abtn" data-act="odbior" style="background:#e8f5e9;color:#2e7d32">✅ Odbiór</button>') +
       '<button type="button" class="abtn" data-act="print">Drukuj</button>' +
       '<button type="button" class="abtn" data-act="copy">Kopiuj jako nowe</button>' +
       '<button type="button" class="abtn" data-act="share">Udostępnij</button>' +
@@ -1024,6 +1173,15 @@ $("archList").addEventListener("click", ev => {
     setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
     toast("Otwarto zlecenie " + (rec.data.f_nr || ""));
     window.scrollTo({ top: 0, behavior: "smooth" });
+  } else if (act === "odbior") {
+    setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
+    if (!$("f_odb_data").value) {
+      const now = new Date(), pp = n => String(n).padStart(2, "0");
+      $("f_odb_data").value = now.toISOString().slice(0, 10);
+      $("f_odb_godz").value = pp(now.getHours()) + ":" + pp(now.getMinutes());
+    }
+    toast("Odbiór — poproś klienta o podpis, potem „Zapisz” i wydrukuj");
+    setTimeout(() => $("odbCard").scrollIntoView({ behavior: "smooth" }), 150);
   } else if (act === "print") {
     setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
     setTimeout(printDoc, 250);
@@ -1244,7 +1402,7 @@ $("csvBtn").addEventListener("click", () => {
   if (!list.length) { toast("Brak zleceń do wyeksportowania"); return; }
   const head = ["Nr zlecenia","Data","Godzina","Klient","NIP/PESEL","Telefon/e-mail","Adres","Marka","Model","Rok",
                 "Nr rejestracyjny","VIN","Przebieg","Paliwo","Usterki / zakres prac","Części (nazwa x il. [nr])",
-                "Koszt szacunkowy","Termin","Podpis klienta","Utworzono","Zaktualizowano"];
+                "Koszt szacunkowy","Termin","Podpis klienta","Data odbioru","Podpis odbioru","Wykonane prace","Utworzono","Zaktualizowano"];
   const rows = list.map(r => {
     const d = r.data || {};
     const parts = (d.czesci || []).map(pt =>
@@ -1252,6 +1410,9 @@ $("csvBtn").addEventListener("click", () => {
     return [d.f_nr, d.f_data, d.f_godz, d.f_klient, d.f_nip, d.f_tel, d.f_adres, d.f_marka, d.f_model, d.f_rok,
             d.f_rej, d.f_vin, d.f_przebieg, d.f_paliwo, d.f_usterki, parts, d.f_koszt, d.f_termin,
             d.podpis ? "TAK" : "NIE",
+            [d.f_odb_data, d.f_odb_godz].filter(Boolean).join(" "),
+            d.podpis2 ? "TAK" : "NIE",
+            d.f_prace,
             (r.createdAt || "").slice(0, 16).replace("T", " "),
             (r.updatedAt || "").slice(0, 16).replace("T", " ")]
       .map(csvCell).join(";");
@@ -1289,6 +1450,10 @@ function orderSummaryText(rec) {
     "Koszt szacunkowy: " + (d.f_koszt ? d.f_koszt.replace(/zł\s*$/i, "").trim() + " zł" : "—"),
     "Termin: " + (d.f_termin || "—"),
     "Podpis klienta: " + (d.podpis ? "złożony" : "brak"),
+    (d.f_odb_data || d.podpis2)
+      ? "ODBIÓR POJAZDU: " + [(d.f_odb_data || "").split("-").reverse().join("."), d.f_odb_godz].filter(Boolean).join(" godz. ") +
+        (d.podpis2 ? " — podpis odbioru złożony" : "") + (d.f_prace ? "\nWykonane prace: " + d.f_prace : "")
+      : "",
   ].filter(s => s !== "").join("\n");
 }
 function shareOrder(rec) {
@@ -1313,8 +1478,9 @@ function shareOrder(rec) {
   $("f_data").value = now.toISOString().slice(0, 10);
   $("f_godz").value = p(now.getHours()) + ":" + p(now.getMinutes());
   setupDictation("mic_usterki", "f_usterki", "append");
-  setupDictation("mic_koszt", "f_koszt", "replace");
-  sigResize();
+  setupDictation("mic_koszt", "f_koszt", "replace", plKwota);
+  setupDictation("mic_prace", "f_prace", "append");
+  sig1.resize(); sig2.resize();
   if (!storageOK) $("storWarn").style.display = "block";
   if (liveSupported()) $("liveBtn").style.display = "inline-block";
   $("f_nr").value = newOrderNumber();
