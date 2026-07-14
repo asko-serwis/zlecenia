@@ -676,13 +676,23 @@ let zxMod = null, zxTried = false;
 async function loadZx() {
   if (zxMod || zxTried) return zxMod;
   zxTried = true;
-  const urls = [
-    "https://cdn.jsdelivr.net/npm/zxing-wasm@2/dist/reader/index.js",
-    "https://cdn.jsdelivr.net/npm/zxing-wasm@1/dist/reader/index.js",
-    "https://unpkg.com/zxing-wasm@2/dist/reader/index.js"
+  /* 1) silnik lokalny z repozytorium (działa też offline), 2-3) zapasowo CDN */
+  const sources = [
+    "./zxing-reader.js",
+    "https://cdn.jsdelivr.net/npm/zxing-wasm@3/dist/es/reader/index.js",
+    "https://unpkg.com/zxing-wasm@3/dist/es/reader/index.js"
   ];
-  for (const u of urls) {
-    try { zxMod = await import(u); if (zxMod) return zxMod; } catch (e) {}
+  for (const u of sources) {
+    try {
+      const m = await import(u);
+      if (m && m.readBarcodes) {
+        if (u.startsWith("./") && m.prepareZXingModule) {
+          try { m.prepareZXingModule({ overrides: { locateFile: pth => pth } }); } catch (e) {}
+        }
+        zxMod = m;
+        return zxMod;
+      }
+    } catch (e) {}
   }
   return null;
 }
