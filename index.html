@@ -10,6 +10,11 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
+<script src="./firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <title>ASKO — Asystent zlecenia naprawy</title>
 <style>
 :root{
@@ -139,7 +144,10 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 }
 
 /* ---------- ikona archiwum w nagłówku ---------- */
-#topArch{margin-left:auto;flex:0 0 auto;position:relative;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#cloudBtn{margin-left:auto;flex:0 0 auto;position:relative;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#cloudBtn span{position:absolute;top:6px;right:6px;width:11px;height:11px;border-radius:50%;background:#9e9e9e;border:2px solid var(--dark)}
+@media print{#cloudBtn,#cloudModal{display:none!important}}
+#topArch{margin-left:8px;flex:0 0 auto;position:relative;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #topArch span{position:absolute;top:-7px;right:-7px;background:var(--orange);color:#fff;font-size:12px;font-weight:bold;border-radius:10px;min-width:20px;height:20px;line-height:20px;padding:0 4px}
 #archModal .mrow{cursor:pointer}
 #archModal .mrow:active{background:#fff3e6}
@@ -168,8 +176,9 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 21</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 22</b></small>
   </div>
+  <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami">☁<span id="cloudDot"></span></button>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
 </header>
 
@@ -258,6 +267,12 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     </div>
     <div style="margin-top:10px"><label class="f">Widoczne uszkodzenia, kontrolki, inne rzeczy w pojeździe</label>
       <textarea id="f_stan" rows="3" placeholder="np. rysa na tylnym zderzaku, kontrolka check engine, fotelik dziecięcy na tylnej kanapie"></textarea></div>
+    <div style="margin-top:10px">
+      <button type="button" class="abtn" id="vidBtn">🎥 Nagraj / dodaj film (stan pojazdu)</button>
+      <input type="file" id="vidInput" accept="video/*" capture="environment" style="display:none">
+      <div id="vidProg" class="hint" style="display:none;margin-top:6px;font-weight:bold"></div>
+      <div id="vidList" style="margin-top:6px;font-size:14px;line-height:2"></div>
+    </div>
   </div>
 </div>
 
@@ -375,6 +390,26 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <button class="btn btn-grey" id="newBtn">🆕 Nowe zlecenie</button>
 </div>
 <div class="hint" style="text-align:center;padding-bottom:24px">Drukowanie zlecenia zapisuje je też automatycznie w archiwum. Drukuj dwustronnie — warunki naprawy trafią na odwrót kartki. Na iPhonie: „Udostępnij” → „Drukuj”.</div>
+<div id="cloudModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60">
+  <div style="background:#fff;max-width:480px;margin:8vh auto 0;border-radius:12px;overflow:hidden;width:calc(100% - 24px);box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dark);color:#fff">
+      <b>☁ Synchronizacja urządzeń</b>
+      <button type="button" id="cloudModalClose" style="border:none;background:none;color:#fff;font-size:24px;cursor:pointer;padding:0 4px">✕</button>
+    </div>
+    <div style="padding:14px 16px">
+      <div id="cloudStatus" class="hint" style="margin:0 0 10px"></div>
+      <div id="cloudLoginBox" style="display:none">
+        <label class="f">E-mail konta warsztatu</label>
+        <input type="email" id="cloudEmail" autocomplete="username" style="margin-bottom:8px">
+        <label class="f">Hasło</label>
+        <input type="password" id="cloudPass" autocomplete="current-password" style="margin-bottom:10px">
+        <button type="button" class="btn btn-orange" id="cloudLogin" style="width:100%">Zaloguj i synchronizuj</button>
+      </div>
+      <button type="button" class="btn btn-grey" id="cloudLogout" style="display:none;width:100%">Wyloguj to urządzenie</button>
+      <div class="hint" style="margin-top:10px">Po zalogowaniu tym samym kontem na maks. 3 urządzeniach zlecenia (wraz z filmami) są wspólne i aktualizują się na bieżąco. Bez logowania aplikacja działa jak dotąd — lokalnie.</div>
+    </div>
+  </div>
+</div>
 <div id="archModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60">
   <div style="background:#fff;max-width:560px;margin:7vh auto 0;border-radius:12px;max-height:82vh;display:flex;flex-direction:column;overflow:hidden;width:calc(100% - 24px);box-shadow:0 10px 40px rgba(0,0,0,.3)">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dark);color:#fff">
@@ -1290,6 +1325,7 @@ function getFormData() {
   d.podpis = sig1.isEmpty() ? "" : sig1.toDataURL();
   d.podpis2 = sig2.isEmpty() ? "" : sig2.toDataURL();
   d.czesci = getParts();
+  d.filmy = currentFilmy.slice();
   return d;
 }
 function setFormData(d) {
@@ -1303,9 +1339,150 @@ function setFormData(d) {
   sig1.set(d.podpis || "");
   sig2.set(d.podpis2 || "");
   renderParts(d.czesci || []);
+  currentFilmy = (d.filmy || []).slice();
+  renderVids(null);
   $("odbBadge").style.display = (d.podpis2 || d.f_odb_data) ? "inline-block" : "none";
   updateTodo();
 }
+
+/* ==================== CHMURA (Firebase) ==================== */
+const CLOUD = { on: false, user: null, db: null, st: null, unsub: null };
+function cloudConfigured() {
+  return !!(window.ASKO_FB && window.ASKO_FB.apiKey && window.firebase && firebase.initializeApp);
+}
+async function cloudInit() {
+  if (!cloudConfigured()) { updateCloudUi(); return; }
+  try {
+    firebase.initializeApp(window.ASKO_FB);
+    CLOUD.db = firebase.firestore();
+    try { await CLOUD.db.enablePersistence({ synchronizeTabs: true }); } catch (e) {}
+    CLOUD.st = firebase.storage();
+    firebase.auth().onAuthStateChanged(u => {
+      CLOUD.user = u; CLOUD.on = !!u;
+      updateCloudUi();
+      if (u) startCloudSync(); else stopCloudSync();
+    });
+  } catch (e) { updateCloudUi(); }
+}
+function stopCloudSync() { if (CLOUD.unsub) { CLOUD.unsub(); CLOUD.unsub = null; } }
+async function startCloudSync() {
+  stopCloudSync();
+  const col = CLOUD.db.collection("zlecenia");
+  try {
+    /* pierwsza synchronizacja: lokalne nowsze/nieznane -> chmura */
+    const snap = await col.get();
+    const cloudMap = {};
+    snap.forEach(dc => { cloudMap[dc.id] = dc.data(); });
+    for (const r of loadAll()) {
+      const c = cloudMap[r.id];
+      if (!c || (r.updatedAt || "") > (c.updatedAt || "")) await col.doc(r.id).set(r);
+    }
+  } catch (e) { toast("☁ Problem z pierwszą synchronizacją: " + (e.code || e.message)); }
+  /* nasłuch w czasie rzeczywistym: chmura -> to urządzenie */
+  CLOUD.unsub = col.onSnapshot(snap => {
+    const list = [];
+    snap.forEach(dc => list.push(dc.data()));
+    saveAll(list);
+    renderArch();
+  }, e => toast("☁ Błąd nasłuchu: " + (e.code || e.message)));
+}
+function cloudPush(rec) {
+  if (!CLOUD.on || !rec) return;
+  CLOUD.db.collection("zlecenia").doc(rec.id).set(rec)
+    .catch(e => toast("☁ Nie wysłano do chmury: " + (e.code || e.message)));
+}
+function cloudDelete(id) {
+  if (!CLOUD.on || !id) return;
+  CLOUD.db.collection("zlecenia").doc(id).delete().catch(() => {});
+}
+function updateCloudUi() {
+  const dot = $("cloudDot");
+  if (dot) dot.style.background = !cloudConfigured() ? "#9e9e9e" : (CLOUD.on ? "#2e7d32" : "#e53935");
+  const s = $("cloudStatus");
+  if (!s) return;
+  if (!cloudConfigured()) {
+    s.textContent = "Synchronizacja nieskonfigurowana. W repozytorium brakuje pliku firebase-config.js z danymi projektu Firebase (instrukcja konfiguracji — w rozmowie z Claude). Aplikacja działa lokalnie na tym urządzeniu.";
+  } else if (CLOUD.on) {
+    s.textContent = "✔ Połączono jako " + (CLOUD.user.email || "") + ". Zlecenia i filmy synchronizują się na bieżąco między zalogowanymi urządzeniami.";
+  } else {
+    s.textContent = "Skonfigurowano, ale to urządzenie nie jest zalogowane. Zaloguj się wspólnym kontem warsztatu.";
+  }
+  $("cloudLoginBox").style.display = (cloudConfigured() && !CLOUD.on) ? "block" : "none";
+  $("cloudLogout").style.display = CLOUD.on ? "block" : "none";
+}
+$("cloudBtn").addEventListener("click", () => { updateCloudUi(); $("cloudModal").style.display = "block"; });
+$("cloudModalClose").addEventListener("click", () => $("cloudModal").style.display = "none");
+$("cloudModal").addEventListener("click", ev => { if (ev.target.id === "cloudModal") $("cloudModal").style.display = "none"; });
+$("cloudLogin").addEventListener("click", () => {
+  const em = $("cloudEmail").value.trim(), pw = $("cloudPass").value;
+  if (!em || !pw) { toast("Podaj e-mail i hasło konta warsztatu"); return; }
+  firebase.auth().signInWithEmailAndPassword(em, pw)
+    .then(() => { $("cloudPass").value = ""; toast("☁ Zalogowano — synchronizuję…"); $("cloudModal").style.display = "none"; })
+    .catch(e => toast("Nie udało się zalogować: " + (e.code || e.message)));
+});
+$("cloudLogout").addEventListener("click", () => { firebase.auth().signOut(); toast("Wylogowano to urządzenie"); });
+
+/* ==================== FILMY (stan pojazdu) ==================== */
+let currentFilmy = [];
+function renderVids(d) {
+  const arr = (d && d.filmy) || currentFilmy || [];
+  $("vidList").innerHTML = arr.length ? arr.map((v, i) =>
+    '<div>🎬 <a href="' + escHtml(v.url) + '" target="_blank" rel="noopener">Film ' + (i + 1) + '</a>' +
+    ' <span class="hint">(' + new Date(v.ts).toLocaleString("pl-PL") + ", " + Math.round(v.size / 1048576) + ' MB)</span>' +
+    ' <button type="button" class="abtn del" data-vdel="' + i + '">✖</button></div>').join("") : "";
+}
+$("vidBtn").addEventListener("click", () => {
+  if (!CLOUD.on) {
+    toast("🎥 Filmy wymagają zalogowania do synchronizacji ☁ — nagrania są przechowywane w chmurze warsztatu");
+    $("cloudModal").style.display = "block"; updateCloudUi();
+    return;
+  }
+  $("vidInput").click();
+});
+$("vidInput").addEventListener("change", ev => {
+  const f = ev.target.files[0];
+  ev.target.value = "";
+  if (!f) return;
+  if (f.size > 300 * 1024 * 1024) { toast("Film jest za duży (limit 300 MB) — nagraj krótszy"); return; }
+  let rec = saveOrder(true);
+  if (!rec) { toast("Uzupełnij dane zlecenia (klient / nr rej / usterki) przed dodaniem filmu"); return; }
+  const safeName = (f.name || "film.mp4").replace(/[^\w.\-]+/g, "_");
+  const path = "zlecenia/" + rec.id + "/" + Date.now() + "_" + safeName;
+  const task = CLOUD.st.ref(path).put(f, { contentType: f.type || "video/mp4" });
+  $("vidProg").style.display = "block";
+  $("vidProg").textContent = "Wysyłanie filmu: 0%";
+  task.on("state_changed", s => {
+    $("vidProg").textContent = "Wysyłanie filmu: " + Math.round(100 * s.bytesTransferred / s.totalBytes) +
+      "% z " + Math.round(s.totalBytes / 1048576) + " MB";
+  }, e => {
+    $("vidProg").style.display = "none";
+    toast("Nie udało się wysłać filmu: " + (e.code || e.message));
+  }, async () => {
+    try {
+      const url = await task.snapshot.ref.getDownloadURL();
+      currentFilmy.push({ url, path, ts: new Date().toISOString(), size: f.size });
+      saveOrder(true);
+      renderVids(null);
+      $("vidProg").style.display = "none";
+      toast("🎥 Film zapisany przy zleceniu");
+    } catch (e) {
+      $("vidProg").style.display = "none";
+      toast("Film wysłany, ale nie udało się pobrać adresu: " + (e.code || e.message));
+    }
+  });
+});
+$("vidList").addEventListener("click", async ev => {
+  const b = ev.target.closest("button[data-vdel]");
+  if (!b) return;
+  const i = +b.dataset.vdel;
+  const v = currentFilmy[i];
+  if (!v) return;
+  if (!confirm("Usunąć film " + (i + 1) + " z tego zlecenia?")) return;
+  try { if (CLOUD.on && v.path) await CLOUD.st.ref(v.path).delete(); } catch (e) {}
+  currentFilmy.splice(i, 1);
+  saveOrder(true);
+  renderVids(null);
+});
 
 /* ==================== PAMIĘĆ ZLECEŃ ==================== */
 const LS_KEY = "asko_zlecenia_v1", DRAFT_KEY = "asko_szkic_v1";
@@ -1366,6 +1543,7 @@ function saveOrder(silent) {
     currentId = rec.id;
   }
   saveAll(list);
+  cloudPush(rec);
   clearDraft();
   renderArch();
   showEditBadge(true);
@@ -1553,6 +1731,7 @@ $("archList").addEventListener("click", ev => {
   } else if (act === "del") {
     if (!confirm("Usunąć zlecenie " + (rec.data.f_nr || "") + "? Tej operacji nie można cofnąć.")) return;
     saveAll(list.filter(r => r.id !== id));
+    cloudDelete(id);
     if (currentId === id) { currentId = null; showEditBadge(false); }
     renderArch();
     toast("Usunięto zlecenie");
@@ -1614,6 +1793,7 @@ function partRowHtml(pt) {
     '<div class="p-btns">' +
     '<button type="button" class="abtn" data-act="pmic">🎤 Dyktuj</button>' +
     '<button type="button" class="abtn open" data-act="pfind">🔍 Inter Cars</button>' +
+    '<button type="button" class="abtn" data-act="pnr">📥 Wklej nr</button>' +
     '<button type="button" class="abtn del" data-act="pdel">✖</button>' +
     '</div></div>';
 }
@@ -1643,6 +1823,17 @@ $("partsList").addEventListener("click", ev => {
   const nameInp = row.querySelector(".p-name");
   const act = btn.dataset.act;
   if (act === "pdel") { row.remove(); scheduleDraft(); }
+  else if (act === "pnr") {
+    if (!(navigator.clipboard && navigator.clipboard.readText)) { toast("Ta przeglądarka nie pozwala odczytać schowka — wpisz numer ręcznie"); return; }
+    navigator.clipboard.readText().then(t => {
+      t = (t || "").trim();
+      if (!t) { toast("Schowek jest pusty — najpierw skopiuj numer w katalogu Inter Cars"); return; }
+      if (t.length > 40 || /\n/.test(t)) { toast("W schowku nie ma numeru katalogowego (za długa treść)"); return; }
+      row.querySelector(".p-cat").value = t;
+      scheduleDraft();
+      toast("📥 Wklejono nr: " + t);
+    }).catch(() => toast("iPhone poprosi o zgodę na wklejenie — dotknij „Wklej” w dymku i spróbuj ponownie"));
+  }
   else if (act === "pmic") { startVoice(nameInp, () => {}); }
   else if (act === "pfind") { searchIC(nameInp.value.trim()); }
 });
@@ -1812,6 +2003,7 @@ function shareOrder(rec) {
   if (!storageOK) $("storWarn").style.display = "block";
   if (liveSupported()) $("liveBtn").style.display = "inline-block";
   loadZx().then(engineNote);
+  cloudInit();
   updateTodo();
   $("f_nr").value = newOrderNumber();
   renderArch();
