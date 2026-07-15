@@ -181,7 +181,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 30</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 31</b></small>
   </div>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami">☁<span id="cloudDot"></span></button>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
@@ -1056,6 +1056,41 @@ $("icTestBtn").addEventListener("click", async () => {
     out.textContent = "✖ Nie udało się połączyć z Workerem: " + (e.message || e) + "\nSprawdź adres workerUrl w intercars-config.js.";
   }
 });
+async function icQuoteRow(row) {
+  if (!icConfigured()) { toast("Brak konfiguracji Inter Cars (plik intercars-config.js)"); return; }
+  const idx = (row.querySelector(".p-cat").value || "").trim();
+  const box = row.querySelector(".ic-result");
+  if (!idx) { toast("Wpisz lub zeskanuj numer katalogowy w tym wierszu, a potem sprawdź cenę"); return; }
+  const qty = parseInt((row.querySelector(".p-qty") && row.querySelector(".p-qty").value) || "1", 10) || 1;
+  box.style.display = "block";
+  box.textContent = "Pytam Inter Cars o „" + idx + "”…";
+  try {
+    const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + "/ic/inventory/quote", {
+      method: "POST",
+      headers: { "x-asko-key": window.ASKO_IC.appKey, "content-type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ lines: [{ index: idx, quantity: qty }] })
+    });
+    const txt = await r.text();
+    let j = null;
+    try { j = JSON.parse(txt); } catch (e) {}
+    if (r.status === 404) { box.textContent = "✖ Inter Cars nie zna numeru „" + idx + "”. Uwaga: pisownia musi być dokładna, ze spacjami (np. „OP 520”, nie „OP520”)."; return; }
+    if (!r.ok || !j) { box.textContent = "✖ Błąd IC (" + r.status + "): " + txt.slice(0, 200); return; }
+    const items = Array.isArray(j) ? j : (j.lines || []);
+    if (!items.length) { box.textContent = "✖ Brak danych dla „" + idx + "”."; return; }
+    const it = items[0], pr = it.price || {};
+    const avail = (it.lines || []).reduce((s, l) => s + (l.availability || 0), 0);
+    const magi = (it.lines || []).filter(l => l.availability > 0).map(l => l.location + ": " + l.availability).join(", ");
+    box.innerHTML =
+      "<b>" + escHtml(it.name || "") + "</b> <span style='color:#666'>(" + escHtml(it.index || idx) + ")</span><br>" +
+      "Cena dla warsztatu: <b>" + (pr.customerPriceNet != null ? pr.customerPriceNet.toFixed(2) + " zł netto / " + (pr.customerPriceGross || 0).toFixed(2) + " zł brutto" : "—") + "</b>" +
+      (pr.listPriceGross != null ? " <span style='color:#666'>(katalogowa " + pr.listPriceGross.toFixed(2) + " zł)</span>" : "") + "<br>" +
+      "Dostępność: <b>" + (avail >= 10 ? "10+" : avail) + " szt.</b>" + (magi ? " <span style='color:#666'>(" + escHtml(magi) + ")</span>" : " — brak na stanie w Twojej ścieżce") +
+      '<div style="margin-top:6px"><button type="button" class="abtn" data-act="pfill">⬇ Wstaw nazwę i numer do wiersza</button></div>';
+    row.__icItem = it;
+  } catch (e) {
+    box.textContent = "✖ Nie udało się połączyć z pośrednikiem: " + (e.message || e);
+  }
+}
 $("icDiagCopy").addEventListener("click", async () => {
   const ok = await copyText(window.__icDiag || $("icTestOut").textContent);
   toast(ok ? "📋 Skopiowano — wklej w rozmowie z Claude" : "Nie udało się skopiować");
@@ -2198,8 +2233,10 @@ function partRowHtml(pt) {
     '<button type="button" class="abtn" data-act="pmic">🎤 Dyktuj</button>' +
     '<button type="button" class="abtn open" data-act="pfind">🔍 Inter Cars</button>' +
     '<button type="button" class="abtn" data-act="pscan">📷 Skan z pudełka</button>' +
+    '<button type="button" class="abtn" data-act="pquote" style="background:#e8f0fe;color:#174ea6">💶 Cena i dostępność IC</button>' +
     '<button type="button" class="abtn" data-act="pnr">📥 Wklej nr</button>' +
     '<button type="button" class="abtn del" data-act="pdel">✖</button>' +
+    '<div class="ic-result" style="display:none;flex-basis:100%;background:#f5f8ff;border:1px solid #c7d7f5;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:14px;line-height:1.5"></div>' +
     '</div></div>';
 }
 function renderParts(list) {
@@ -2229,6 +2266,16 @@ $("partsList").addEventListener("click", ev => {
   const act = btn.dataset.act;
   if (act === "pdel") { row.remove(); scheduleDraft(); }
   else if (act === "pscan") { startBarScan(row.querySelector(".p-cat")); }
+  else if (act === "pquote") { icQuoteRow(row); }
+  else if (act === "pfill") {
+    const it = row.__icItem;
+    if (!it) return;
+    const nameInp2 = row.querySelector(".p-name");
+    if (it.name && (!nameInp2.value || nameInp2.value.length < it.name.length)) nameInp2.value = it.name;
+    if (it.index) row.querySelector(".p-cat").value = it.index;
+    scheduleDraft();
+    toast("⬇ Uzupełniono z Inter Cars");
+  }
   else if (act === "pnr") {
     if (!(navigator.clipboard && navigator.clipboard.readText)) { toast("Ta przeglądarka nie pozwala odczytać schowka — wpisz numer ręcznie"); return; }
     navigator.clipboard.readText().then(t => {
