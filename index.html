@@ -15,6 +15,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./supabase-config.js"></script>
+<script src="./intercars-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>(()=>{var v=function(w,x){let s=w,l=j[x],e=null,t=0,u=null,p=[],y={},h=function(r,c){t=s*4+17,e=(function(n){let f=new Array(n);for(let i=0;i<n;i+=1){f[i]=new Array(n);for(let g=0;g<n;g+=1)f[i][g]=null}return f})(t),a(0,0),a(t-7,0),a(0,t-7),k(),P(),R(r,c),s>=7&&E(r),u==null&&(u=$(s,l,p)),m(u,c)},a=function(r,c){for(let n=-1;n<=7;n+=1)if(!(r+n<=-1||t<=r+n))for(let f=-1;f<=7;f+=1)c+f<=-1||t<=c+f||(0<=n&&n<=6&&(f==0||f==6)||0<=f&&f<=6&&(n==0||n==6)||2<=n&&n<=4&&2<=f&&f<=4?e[r+n][c+f]=!0:e[r+n][c+f]=!1)},_=function(){let r=0,c=0;for(let n=0;n<8;n+=1){h(!0,n);let f=O.getLostPoint(y);(n==0||r>f)&&(r=f,c=n)}return c},P=function(){for(let r=8;r<t-8;r+=1)e[r][6]==null&&(e[r][6]=r%2==0);for(let r=8;r<t-8;r+=1)e[6][r]==null&&(e[6][r]=r%2==0)},k=function(){let r=O.getPatternPosition(s);for(let c=0;c<r.length;c+=1)for(let n=0;n<r.length;n+=1){let f=r[c],i=r[n];if(e[f][i]==null)for(let g=-2;g<=2;g+=1)for(let A=-2;A<=2;A+=1)g==-2||g==2||A==-2||A==2||g==0&&A==0?e[f+g][i+A]=!0:e[f+g][i+A]=!1}},E=function(r){let c=O.getBCHTypeNumber(s);for(let n=0;n<18;n+=1){let f=!r&&(c>>n&1)==1;e[Math.floor(n/3)][n%3+t-8-3]=f}for(let n=0;n<18;n+=1){let f=!r&&(c>>n&1)==1;e[n%3+t-8-3][Math.floor(n/3)]=f}},R=function(r,c){let n=l<<3|c,f=O.getBCHTypeInfo(n);for(let i=0;i<15;i+=1){let g=!r&&(f>>i&1)==1;i<6?e[i][8]=g:i<8?e[i+1][8]=g:e[t-15+i][8]=g}for(let i=0;i<15;i+=1){let g=!r&&(f>>i&1)==1;i<8?e[8][t-i-1]=g:i<9?e[8][15-i-1+1]=g:e[8][15-i-1]=g}e[t-8][8]=!r},m=function(r,c){let n=-1,f=t-1,i=7,g=0,A=O.getMaskFunction(c);for(let B=t-1;B>0;B-=2)for(B==6&&(B-=1);;){for(let M=0;M<2;M+=1)if(e[f][B-M]==null){let T=!1;g<r.length&&(T=(r[g]>>>i&1)==1),A(f,B-M)&&(T=!T),e[f][B-M]=T,i-=1,i==-1&&(g+=1,i=7)}if(f+=n,f<0||t<=f){f-=n,n=-n;break}}},Z=function(r,c){let n=0,f=0,i=0,g=new Array(c.length),A=new Array(c.length);for(let b=0;b<c.length;b+=1){let C=c[b].dataCount,L=c[b].totalCount-C;f=Math.max(f,C),i=Math.max(i,L),g[b]=new Array(C);for(let I=0;I<g[b].length;I+=1)g[b][I]=255&r.getBuffer()[I+n];n+=C;let Q=O.getErrorCorrectPolynomial(L),F=K(g[b],Q.getLength()-1).mod(Q);A[b]=new Array(Q.getLength()-1);for(let I=0;I<A[b].length;I+=1){let S=I+F.getLength()-A[b].length;A[b][I]=S>=0?F.getAt(S):0}}let B=0;for(let b=0;b<c.length;b+=1)B+=c[b].totalCount;let M=new Array(B),T=0;for(let b=0;b<f;b+=1)for(let C=0;C<c.length;C+=1)b<g[C].length&&(M[T]=g[C][b],T+=1);for(let b=0;b<i;b+=1)for(let C=0;C<c.length;C+=1)b<A[C].length&&(M[T]=A[C][b],T+=1);return M},$=function(r,c,n){let f=Y.getRSBlocks(r,c),i=G();for(let A=0;A<n.length;A+=1){let B=n[A];i.put(B.getMode(),4),i.put(B.getLength(),O.getLengthInBits(B.getMode(),r)),B.write(i)}let g=0;for(let A=0;A<f.length;A+=1)g+=f[A].dataCount;if(i.getLengthInBits()>g*8)throw"code length overflow. ("+i.getLengthInBits()+">"+g*8+")";for(i.getLengthInBits()+4<=g*8&&i.put(0,4);i.getLengthInBits()%8!=0;)i.putBit(!1);for(;!(i.getLengthInBits()>=g*8||(i.put(236,8),i.getLengthInBits()>=g*8));)i.put(17,8);return Z(i,f)};y.addData=function(r,c){c=c||"Byte";let n=null;switch(c){case"Numeric":n=V(r);break;case"Alphanumeric":n=q(r);break;case"Byte":n=z(r);break;case"Kanji":n=tt(r);break;default:throw"mode:"+c}p.push(n),u=null},y.isDark=function(r,c){if(r<0||t<=r||c<0||t<=c)throw r+","+c;return e[r][c]},y.getModuleCount=function(){return t},y.make=function(){if(s<1){let r=1;for(;r<40;r++){let c=Y.getRSBlocks(r,l),n=G();for(let i=0;i<p.length;i++){let g=p[i];n.put(g.getMode(),4),n.put(g.getLength(),O.getLengthInBits(g.getMode(),r)),g.write(n)}let f=0;for(let i=0;i<c.length;i++)f+=c[i].dataCount;if(n.getLengthInBits()<=f*8)break}s=r}h(!1,_())},y.createTableTag=function(r,c){r=r||2,c=typeof c>"u"?r*4:c;let n="";n+='<table style="',n+=" border-width: 0px; border-style: none;",n+=" border-collapse: collapse;",n+=" padding: 0px; margin: "+c+"px;",n+='">',n+="<tbody>";for(let f=0;f<y.getModuleCount();f+=1){n+="<tr>";for(let i=0;i<y.getModuleCount();i+=1)n+='<td style="',n+=" border-width: 0px; border-style: none;",n+=" border-collapse: collapse;",n+=" padding: 0px; margin: 0px;",n+=" width: "+r+"px;",n+=" height: "+r+"px;",n+=" background-color: ",n+=y.isDark(f,i)?"#000000":"#ffffff",n+=";",n+='"/>';n+="</tr>"}return n+="</tbody>",n+="</table>",n},y.createSvgTag=function(r,c,n,f){let i={};typeof arguments[0]=="object"&&(i=arguments[0],r=i.cellSize,c=i.margin,n=i.alt,f=i.title),r=r||2,c=typeof c>"u"?r*4:c,n=typeof n=="string"?{text:n}:n||{},n.text=n.text||null,n.id=n.text?n.id||"qrcode-description":null,f=typeof f=="string"?{text:f}:f||{},f.text=f.text||null,f.id=f.text?f.id||"qrcode-title":null;let g=y.getModuleCount()*r+c*2,A,B,M,T,b="",C;for(C="l"+r+",0 0,"+r+" -"+r+",0 0,-"+r+"z ",b+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',b+=i.scalable?"":' width="'+g+'px" height="'+g+'px"',b+=' viewBox="0 0 '+g+" "+g+'" ',b+=' preserveAspectRatio="xMinYMin meet"',b+=f.text||n.text?' role="img" aria-labelledby="'+U([f.id,n.id].join(" ").trim())+'"':"",b+=">",b+=f.text?'<title id="'+U(f.id)+'">'+U(f.text)+"</title>":"",b+=n.text?'<description id="'+U(n.id)+'">'+U(n.text)+"</description>":"",b+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',b+='<path d="',M=0;M<y.getModuleCount();M+=1)for(T=M*r+c,A=0;A<y.getModuleCount();A+=1)y.isDark(M,A)&&(B=A*r+c,b+="M"+B+","+T+C);return b+='" stroke="transparent" fill="black"/>',b+="</svg>",b},y.createDataURL=function(r,c){r=r||2,c=typeof c>"u"?r*4:c;let n=y.getModuleCount()*r+c*2,f=c,i=n-c;return ot(n,n,function(g,A){if(f<=g&&g<i&&f<=A&&A<i){let B=Math.floor((g-f)/r),M=Math.floor((A-f)/r);return y.isDark(M,B)?0:1}else return 1})},y.createImgTag=function(r,c,n){r=r||2,c=typeof c>"u"?r*4:c;let f=y.getModuleCount()*r+c*2,i="";return i+="<img",i+=' src="',i+=y.createDataURL(r,c),i+='"',i+=' width="',i+=f,i+='"',i+=' height="',i+=f,i+='"',n&&(i+=' alt="',i+=U(n),i+='"'),i+="/>",i};let U=function(r){let c="";for(let n=0;n<r.length;n+=1){let f=r.charAt(n);switch(f){case"<":c+="&lt;";break;case">":c+="&gt;";break;case"&":c+="&amp;";break;case'"':c+="&quot;";break;default:c+=f;break}}return c},W=function(r){r=typeof r>"u"?2:r;let n=y.getModuleCount()*1+r*2,f=r,i=n-r,g,A,B,M,T,b={"\u2588\u2588":"\u2588","\u2588 ":"\u2580"," \u2588":"\u2584","  ":" "},C={"\u2588\u2588":"\u2580","\u2588 ":"\u2580"," \u2588":" ","  ":" "},L="";for(g=0;g<n;g+=2){for(B=Math.floor((g-f)/1),M=Math.floor((g+1-f)/1),A=0;A<n;A+=1)T="\u2588",f<=A&&A<i&&f<=g&&g<i&&y.isDark(B,Math.floor((A-f)/1))&&(T=" "),f<=A&&A<i&&f<=g+1&&g+1<i&&y.isDark(M,Math.floor((A-f)/1))?T+=" ":T+="\u2588",L+=r<1&&g+1>=i?C[T]:b[T];L+=`
 `}return n%2&&r>0?L.substring(0,L.length-n-1)+Array(n+1).join("\u2580"):L.substring(0,L.length-1)};return y.createASCII=function(r,c){if(r=r||1,r<2)return W(c);r-=1,c=typeof c>"u"?r*2:c;let n=y.getModuleCount()*r+c*2,f=c,i=n-c,g,A,B,M,T=Array(r+1).join("\u2588\u2588"),b=Array(r+1).join("  "),C="",L="";for(g=0;g<n;g+=1){for(B=Math.floor((g-f)/r),L="",A=0;A<n;A+=1)M=1,f<=A&&A<i&&f<=g&&g<i&&y.isDark(B,Math.floor((A-f)/r))&&(M=0),L+=M?T:b;for(B=0;B<r;B+=1)C+=L+`
@@ -180,7 +181,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 29</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 30</b></small>
   </div>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami">☁<span id="cloudDot"></span></button>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
@@ -333,6 +334,11 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <div class="card">
   <h2><span class="num">7</span> ZASTOSOWANE CZĘŚCI</h2>
   <div class="body">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+      <button type="button" class="abtn" id="icTestBtn">🧩 Test połączenia Inter Cars API</button>
+      <button type="button" class="abtn" id="icDiagCopy" style="display:none">📋 Skopiuj wynik diagnostyki</button>
+    </div>
+    <div class="hint" id="icTestOut" style="display:none;white-space:pre-wrap;word-break:break-all"></div>
     <div class="parts-head">
       <button type="button" class="btn btn-orange" id="partAdd">＋ Dodaj część</button>
       <button type="button" class="btn btn-dark" id="partVoice">🎤 Podyktuj część i szukaj w Inter Cars</button>
@@ -1018,6 +1024,42 @@ async function stopLive() {
 }
 $("liveBtn").addEventListener("click", startLive);
 $("liveStop").addEventListener("click", stopLive);
+
+/* ---------- Inter Cars API (przez bezpieczny Worker) ---------- */
+function icConfigured() {
+  return !!(window.ASKO_IC && window.ASKO_IC.workerUrl && window.ASKO_IC.workerUrl.indexOf("http") === 0 && window.ASKO_IC.appKey && window.ASKO_IC.appKey.indexOf("TU_WKLEJ") !== 0);
+}
+async function icFetch(path) {
+  const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + path, {
+    headers: { "x-asko-key": window.ASKO_IC.appKey, "Accept": "application/json" }
+  });
+  const txt = await r.text();
+  let j = null;
+  try { j = JSON.parse(txt); } catch (e) {}
+  return { status: r.status, json: j, text: txt };
+}
+$("icTestBtn").addEventListener("click", async () => {
+  if (!icConfigured()) {
+    toast("Brak konfiguracji — w repozytorium potrzebny plik intercars-config.js z adresem Workera (instrukcja w rozmowie z Claude)");
+    return;
+  }
+  const out = $("icTestOut");
+  out.style.display = "block";
+  out.textContent = "Łączę z pośrednikiem i Inter Cars…";
+  try {
+    const r = await icFetch("/diag");
+    window.__icDiag = r.text;
+    out.textContent = r.text.slice(0, 4000);
+    $("icDiagCopy").style.display = "inline-block";
+    toast(r.status === 200 ? "Diagnostyka zakończona — skopiuj wynik i wklej w rozmowie z Claude" : "Pośrednik odpowiedział błędem " + r.status);
+  } catch (e) {
+    out.textContent = "✖ Nie udało się połączyć z Workerem: " + (e.message || e) + "\nSprawdź adres workerUrl w intercars-config.js.";
+  }
+});
+$("icDiagCopy").addEventListener("click", async () => {
+  const ok = await copyText(window.__icDiag || $("icTestOut").textContent);
+  toast(ok ? "📋 Skopiowano — wklej w rozmowie z Claude" : "Nie udało się skopiować");
+});
 
 /* ---------- skaner kodów z opakowań części (EAN / Code128 / DataMatrix / QR) ---------- */
 let barStream = null, barTimer = null, barBusy = false, barTarget = null;
