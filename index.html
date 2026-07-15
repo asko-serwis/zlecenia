@@ -180,7 +180,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 28</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 29</b></small>
   </div>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami">☁<span id="cloudDot"></span></button>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
@@ -406,7 +406,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 
 <div class="footer-actions" style="margin-bottom:2px">
   <button class="btn btn-orange" style="font-size:17px;padding:14px 30px" id="saveBtn2">💾 Zapisz zlecenie</button>
-  <button class="btn btn-dark" style="font-size:17px;padding:14px 30px" onclick="printDoc()">🖨 Drukuj (2 strony)</button>
+  <button class="btn btn-dark" style="font-size:17px;padding:14px 30px" onclick="doPrint()">🖨 Drukuj (2 strony)</button>
   <button class="btn btn-grey" id="newBtn2">🆕 Nowe zlecenie</button>
 </div>
 
@@ -430,7 +430,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 
 <div class="footer-actions">
   <button class="btn btn-orange" style="font-size:17px;padding:14px 30px" id="saveBtn">💾 Zapisz zlecenie</button>
-  <button class="btn btn-dark" style="font-size:17px;padding:14px 30px" onclick="printDoc()">🖨 Drukuj (2 strony)</button>
+  <button class="btn btn-dark" style="font-size:17px;padding:14px 30px" onclick="doPrint()">🖨 Drukuj (2 strony)</button>
   <button class="btn btn-grey" id="newBtn">🆕 Nowe zlecenie</button>
 </div>
 <div class="hint" style="text-align:center;padding-bottom:24px">Drukowanie zlecenia zapisuje je też automatycznie w archiwum. Drukuj dwustronnie — warunki naprawy trafią na odwrót kartki. Na iPhonie: „Udostępnij” → „Drukuj”.</div>
@@ -1629,6 +1629,18 @@ async function startCloudSync() {
     openFromHash();
   }, e => toast("☁ Błąd nasłuchu: " + (e.code || e.message)));
 }
+function doPrint() {
+  if (navigator.standalone === true) {
+    /* iOS blokuje okno drukowania w aplikacjach z ekranu początkowego —
+       otwieramy zlecenie w nakładce Safari i tam wywołujemy wydruk */
+    const rec = saveOrder(true);
+    if (!rec) { toast("Uzupełnij dane zlecenia przed wydrukiem"); return; }
+    toast("Otwieram wydruk w Safari…");
+    window.open(location.origin + location.pathname + "#z=" + rec.id + "&print=1", "_blank");
+    return;
+  }
+  printDoc();
+}
 let hashOpened = false;
 function openFromHash() {
   if (hashOpened) return;
@@ -1637,10 +1649,17 @@ function openFromHash() {
   const rec = loadAll().find(r => r.id === m[1]);
   if (!rec) return; /* może dojść z chmury — spróbujemy ponownie po synchronizacji */
   hashOpened = true;
+  const wantPrint = /print=1/.test(location.hash || "");
   setFormData(rec.data);
   currentId = rec.id;
   showEditBadge(true);
-  toast("📷 Otwarto zlecenie " + (rec.data.f_nr || "") + " z kodu QR");
+  try { history.replaceState(null, "", location.pathname); } catch (e) {}
+  if (wantPrint) {
+    toast("🖨 Przygotowuję wydruk…");
+    setTimeout(printDoc, 900);
+  } else {
+    toast("📷 Otwarto zlecenie " + (rec.data.f_nr || "") + " z kodu QR");
+  }
 }
 function cloudPush(rec) {
   if (!CLOUD.on || !rec) return;
@@ -2031,7 +2050,7 @@ $("archList").addEventListener("click", ev => {
     setTimeout(() => $("odbCard").scrollIntoView({ behavior: "smooth" }), 150);
   } else if (act === "print") {
     setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
-    setTimeout(printDoc, 250);
+    setTimeout(doPrint, 250);
   } else if (act === "copy") {
     const d = Object.assign({}, rec.data);
     d.podpis = "";
