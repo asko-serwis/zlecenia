@@ -177,7 +177,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 23</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 24</b></small>
   </div>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami">☁<span id="cloudDot"></span></button>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
@@ -366,6 +366,12 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       <span class="hint" id="sigInfo2" style="margin:0">Brak podpisu odbioru</span>
     </div>
   </div>
+</div>
+
+<div class="footer-actions" style="margin-bottom:2px">
+  <button class="btn btn-orange" style="font-size:17px;padding:14px 30px" id="saveBtn2">💾 Zapisz zlecenie</button>
+  <button class="btn btn-dark" style="font-size:17px;padding:14px 30px" onclick="printDoc()">🖨 Drukuj (2 strony)</button>
+  <button class="btn btn-grey" id="newBtn2">🆕 Nowe zlecenie</button>
 </div>
 
 <div class="card">
@@ -1629,6 +1635,8 @@ $("saveBtn").addEventListener("click", () => saveOrder(false));
 $("newBtn").addEventListener("click", () => {
   if (confirm("Rozpocząć nowe zlecenie? Niezapisane zmiany w formularzu zostaną utracone.")) resetForm();
 });
+$("saveBtn2").addEventListener("click", () => $("saveBtn").click());
+$("newBtn2").addEventListener("click", () => $("newBtn").click());
 
 /* ==================== ARCHIWUM — LISTA ==================== */
 function fmtDate(rec) {
