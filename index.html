@@ -14,7 +14,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+<script src="./supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <title>ASKO — Asystent zlecenia naprawy</title>
 <style>
 :root{
@@ -176,7 +177,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 22</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 23</b></small>
   </div>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami">☁<span id="cloudDot"></span></button>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
@@ -1346,7 +1347,7 @@ function setFormData(d) {
 }
 
 /* ==================== CHMURA (Firebase) ==================== */
-const CLOUD = { on: false, user: null, db: null, st: null, unsub: null };
+const CLOUD = { on: false, user: null, db: null, unsub: null };
 function cloudConfigured() {
   return !!(window.ASKO_FB && window.ASKO_FB.apiKey && window.firebase && firebase.initializeApp);
 }
@@ -1356,7 +1357,6 @@ async function cloudInit() {
     firebase.initializeApp(window.ASKO_FB);
     CLOUD.db = firebase.firestore();
     try { await CLOUD.db.enablePersistence({ synchronizeTabs: true }); } catch (e) {}
-    CLOUD.st = firebase.storage();
     firebase.auth().onAuthStateChanged(u => {
       CLOUD.user = u; CLOUD.on = !!u;
       updateCloudUi();
@@ -1422,7 +1422,15 @@ $("cloudLogin").addEventListener("click", () => {
 });
 $("cloudLogout").addEventListener("click", () => { firebase.auth().signOut(); toast("Wylogowano to urządzenie"); });
 
-/* ==================== FILMY (stan pojazdu) ==================== */
+/* ==================== FILMY (stan pojazdu) — magazyn Supabase ==================== */
+let sbClient = null;
+function sbConfigured() {
+  return !!(window.ASKO_SB && window.ASKO_SB.url && window.ASKO_SB.anonKey && window.supabase);
+}
+function sb() {
+  if (!sbClient && sbConfigured()) sbClient = window.supabase.createClient(window.ASKO_SB.url, window.ASKO_SB.anonKey);
+  return sbClient;
+}
 let currentFilmy = [];
 function renderVids(d) {
   const arr = (d && d.filmy) || currentFilmy || [];
@@ -1432,44 +1440,42 @@ function renderVids(d) {
     ' <button type="button" class="abtn del" data-vdel="' + i + '">✖</button></div>').join("") : "";
 }
 $("vidBtn").addEventListener("click", () => {
-  if (!CLOUD.on) {
-    toast("🎥 Filmy wymagają zalogowania do synchronizacji ☁ — nagrania są przechowywane w chmurze warsztatu");
-    $("cloudModal").style.display = "block"; updateCloudUi();
+  if (!sbConfigured()) {
+    toast("🎥 Filmy wymagają pliku supabase-config.js w repozytorium (instrukcja — w rozmowie z Claude)");
     return;
   }
+  if (!CLOUD.on) toast("Uwaga: bez zalogowania ☁ zapis filmu zobaczy tylko to urządzenie");
   $("vidInput").click();
 });
 $("vidInput").addEventListener("change", ev => {
   const f = ev.target.files[0];
   ev.target.value = "";
   if (!f) return;
-  if (f.size > 300 * 1024 * 1024) { toast("Film jest za duży (limit 300 MB) — nagraj krótszy"); return; }
+  const mb = Math.round(f.size / 1048576);
+  if (f.size > 50 * 1024 * 1024) {
+    toast("Film ma " + mb + " MB — darmowy limit to 50 MB na plik. Nagraj krótszy klip (ok. 30–40 s) albo obniż jakość: Ustawienia iPhone’a → Aparat → Nagrywaj wideo → 1080p/30 kl.");
+    return;
+  }
   let rec = saveOrder(true);
   if (!rec) { toast("Uzupełnij dane zlecenia (klient / nr rej / usterki) przed dodaniem filmu"); return; }
   const safeName = (f.name || "film.mp4").replace(/[^\w.\-]+/g, "_");
-  const path = "zlecenia/" + rec.id + "/" + Date.now() + "_" + safeName;
-  const task = CLOUD.st.ref(path).put(f, { contentType: f.type || "video/mp4" });
+  const path = rec.id + "/" + Date.now() + "_" + safeName;
   $("vidProg").style.display = "block";
-  $("vidProg").textContent = "Wysyłanie filmu: 0%";
-  task.on("state_changed", s => {
-    $("vidProg").textContent = "Wysyłanie filmu: " + Math.round(100 * s.bytesTransferred / s.totalBytes) +
-      "% z " + Math.round(s.totalBytes / 1048576) + " MB";
-  }, e => {
-    $("vidProg").style.display = "none";
-    toast("Nie udało się wysłać filmu: " + (e.code || e.message));
-  }, async () => {
-    try {
-      const url = await task.snapshot.ref.getDownloadURL();
-      currentFilmy.push({ url, path, ts: new Date().toISOString(), size: f.size });
+  $("vidProg").textContent = "Wysyłanie filmu (" + mb + " MB)… przy słabszym zasięgu może potrwać do minuty";
+  sb().storage.from("filmy").upload(path, f, { contentType: f.type || "video/mp4", upsert: false })
+    .then(res => {
+      if (res.error) throw res.error;
+      const pub = sb().storage.from("filmy").getPublicUrl(path);
+      currentFilmy.push({ url: pub.data.publicUrl, path, ts: new Date().toISOString(), size: f.size });
       saveOrder(true);
       renderVids(null);
       $("vidProg").style.display = "none";
       toast("🎥 Film zapisany przy zleceniu");
-    } catch (e) {
+    })
+    .catch(e => {
       $("vidProg").style.display = "none";
-      toast("Film wysłany, ale nie udało się pobrać adresu: " + (e.code || e.message));
-    }
-  });
+      toast("Nie udało się wysłać filmu: " + (e.message || e.error_description || e));
+    });
 });
 $("vidList").addEventListener("click", async ev => {
   const b = ev.target.closest("button[data-vdel]");
@@ -1478,7 +1484,7 @@ $("vidList").addEventListener("click", async ev => {
   const v = currentFilmy[i];
   if (!v) return;
   if (!confirm("Usunąć film " + (i + 1) + " z tego zlecenia?")) return;
-  try { if (CLOUD.on && v.path) await CLOUD.st.ref(v.path).delete(); } catch (e) {}
+  try { if (sbConfigured() && v.path) await sb().storage.from("filmy").remove([v.path]); } catch (e) {}
   currentFilmy.splice(i, 1);
   saveOrder(true);
   renderVids(null);
