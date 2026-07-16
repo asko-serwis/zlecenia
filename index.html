@@ -181,7 +181,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 33</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 37</b></small>
   </div>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami">☁<span id="cloudDot"></span></button>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
@@ -336,21 +336,18 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <div class="body">
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
       <button type="button" class="abtn open" id="autoPartsBtn" style="font-weight:bold">🧠 Dobierz części z opisu (VIN + historia)</button>
+      <button type="button" class="abtn" id="quoteAllBtn" style="background:#e8f0fe;color:#174ea6;font-weight:bold">💶 Wyceń wszystkie (IC)</button>
       <button type="button" class="abtn" id="ecatBtn" style="background:#fff3e0;color:#e65100">🔍 e-Catalog (kopiuje VIN)</button>
-      <button type="button" class="abtn" id="icTestBtn">🧩 Test połączenia Inter Cars API</button>
-      <button type="button" class="abtn" id="icDiagCopy" style="display:none">📋 Skopiuj wynik diagnostyki</button>
+      <button type="button" class="abtn" id="oeBtn" style="background:#f3e5f5;color:#6a1b9a">🌍 Katalog OE (PartSouq, VIN)</button>
     </div>
-    <div class="hint" id="icTestOut" style="display:none;white-space:pre-wrap;word-break:break-all"></div>
     <div class="parts-head">
       <button type="button" class="btn btn-orange" id="partAdd">＋ Dodaj część</button>
-      <button type="button" class="btn btn-dark" id="partVoice">🎤 Podyktuj część i szukaj w Inter Cars</button>
-      <button type="button" class="btn btn-grey" id="icVinBtn">🔧 Katalog Inter Cars — VIN</button>
     </div>
     <div id="partsList" class="parts-list"></div>
-    <div class="hint">„🎤 Podyktuj” — mówisz nazwę części, a aplikacja dodaje ją do listy, kopiuje nazwę do schowka i otwiera katalog Inter Cars — w katalogu tylko „Wklej” w wyszukiwarce. Pojazd wybierasz raz, po VIN, i katalog pamięta go do końca sesji. „Katalog — VIN” kopiuje numer VIN do schowka i otwiera katalog Inter Cars: w katalogu przytrzymaj palcem pole wyszukiwania i wybierz „Wklej”, aby dobrać części dokładnie pod ten pojazd. Lista części drukuje się w tabeli „Części i materiały” i zapisuje w archiwum.</div>
+    <div class="hint">Lista części drukuje się w tabeli „Części i materiały” i zapisuje w archiwum. Wybrany niżej katalog otwierają przyciski „🔍 e-Catalog” (u góry) i „🔍 Inter Cars” przy wierszu części.</div>
     <div class="hint" style="margin-top:6px">Katalog Inter Cars:
       <select id="icCatalog" style="width:auto;display:inline-block;font-size:13px;padding:4px 28px 4px 8px;margin-left:4px">
-        <option value="https://ickatalog.intercars.eu/">e-Catalog (warsztatowy, wymaga logowania)</option>
+        <option value="https://pl.e-cat.intercars.eu/">e-Catalog (warsztatowy, wymaga logowania)</option>
         <option value="https://e-katalog.intercars.com.pl/ekatalog">eKatalog (publiczny)</option>
         <option value="https://intercars.pl/">Sklep intercars.pl</option>
         <option value="google">Google (szybko, bez logowania)</option>
@@ -1154,6 +1151,42 @@ async function proponujCzesci() {
 }
 $("autoPartsBtn").addEventListener("click", proponujCzesci);
 
+/* wycena zbiorcza — jedno zapytanie o wszystkie wiersze z numerami */
+async function icQuoteAll() {
+  if (!icConfigured()) { toast("Brak konfiguracji Inter Cars"); return; }
+  const rows = [...$("partsList").querySelectorAll(".part-row")]
+    .map(r => ({ row: r, idx: (r.querySelector(".p-cat").value || "").trim(),
+                 qty: parseInt(r.querySelector(".p-qty").value || "1", 10) || 1 }))
+    .filter(x => x.idx);
+  if (!rows.length) { toast("Żaden wiersz nie ma numeru katalogowego — uzupełnij numery (🧠, 📥, 📷 lub e-Catalog)"); return; }
+  toast("💶 Pytam Inter Cars o " + rows.length + " pozycji…");
+  try {
+    const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + "/ic/inventory/quote", {
+      method: "POST",
+      headers: { "x-asko-key": window.ASKO_IC.appKey, "content-type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ lines: rows.map(x => ({ index: x.idx, quantity: x.qty })) })
+    });
+    const txt = await r.text();
+    let j = null;
+    try { j = JSON.parse(txt); } catch (e) {}
+    if (!r.ok || !j) {
+      rows.forEach(x => { const b = x.row.querySelector(".ic-result"); b.style.display = "block"; b.textContent = "✖ Błąd IC (" + r.status + ")"; });
+      return;
+    }
+    const items = Array.isArray(j) ? j : (j.lines || []);
+    const norm = s => deacc(String(s || "")).replace(/\s+/g, "");
+    let hit = 0;
+    rows.forEach((x, i) => {
+      const it = items.find(t => norm(t.index) === norm(x.idx)) || items[i];
+      const box = x.row.querySelector(".ic-result");
+      if (it && (it.price || it.name)) { renderIcResult(x.row, it, x.idx); hit++; }
+      else { box.style.display = "block"; box.textContent = "✖ IC nie zna numeru „" + x.idx + "” (pisownia ze spacjami ma znaczenie)"; }
+    });
+    toast("💶 Wyceniono " + hit + " z " + rows.length + " pozycji");
+  } catch (e) { toast("✖ Błąd połączenia z pośrednikiem: " + (e.message || e)); }
+}
+$("quoteAllBtn").addEventListener("click", icQuoteAll);
+
 /* mostek do Inter Cars e-Catalog: kopiuje VIN (lub nr rej.) i otwiera katalog */
 $("ecatBtn").addEventListener("click", async () => {
   const vin = ($("f_vin").value || "").trim();
@@ -1167,40 +1200,43 @@ $("ecatBtn").addEventListener("click", async () => {
       ? "📋 Skopiowano " + (vin ? "VIN " : "nr rej. ") + val + " — w e-Catalogu przytrzymaj pole wyszukiwania i wybierz „Wklej”"
       : "Nie udało się skopiować — przepisz: " + val);
   }
-  setTimeout(() => { window.open("https://pl.e-cat.intercars.eu", "_blank"); }, 400);
+  const cat = ($("icCatalog").value && $("icCatalog").value !== "google") ? $("icCatalog").value : "https://pl.e-cat.intercars.eu/";
+  setTimeout(() => { window.open(cat, "_blank"); }, 400);
+});
+
+/* katalog fabryczny OE — PartSouq przyjmuje VIN wprost w adresie */
+$("oeBtn").addEventListener("click", () => {
+  const vin = ($("f_vin").value || "").trim().toUpperCase();
+  if (!vin) {
+    toast("Brak numeru VIN w zleceniu — zeskanuj dowód lub wpisz VIN, wtedy katalog otworzy się od razu na tym aucie");
+    return;
+  }
+  if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+    toast("VIN wygląda na niepełny (" + vin.length + "/17 znaków) — otwieram katalog, sprawdź numer");
+  } else {
+    toast("🌍 Otwieram katalog fabryczny dla VIN " + vin + " — ceny tam są orientacyjne, kupujesz w IC");
+  }
+  window.open("https://partsouq.com/en/search/all?q=" + encodeURIComponent(vin), "_blank");
 });
 
 /* ---------- Inter Cars API (przez bezpieczny Worker) ---------- */
 function icConfigured() {
   return !!(window.ASKO_IC && window.ASKO_IC.workerUrl && window.ASKO_IC.workerUrl.indexOf("http") === 0 && window.ASKO_IC.appKey && window.ASKO_IC.appKey.indexOf("TU_WKLEJ") !== 0);
 }
-async function icFetch(path) {
-  const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + path, {
-    headers: { "x-asko-key": window.ASKO_IC.appKey, "Accept": "application/json" }
-  });
-  const txt = await r.text();
-  let j = null;
-  try { j = JSON.parse(txt); } catch (e) {}
-  return { status: r.status, json: j, text: txt };
+function renderIcResult(row, it, idx) {
+  const box = row.querySelector(".ic-result");
+  const pr = it.price || {};
+  const avail = (it.lines || []).reduce((s, l) => s + (l.availability || 0), 0);
+  const magi = (it.lines || []).filter(l => l.availability > 0).map(l => l.location + ": " + l.availability).join(", ");
+  box.style.display = "block";
+  box.innerHTML =
+    "<b>" + escHtml(it.name || "") + "</b> <span style='color:#666'>(" + escHtml(it.index || idx) + ")</span><br>" +
+    "Cena dla warsztatu: <b>" + (pr.customerPriceNet != null ? pr.customerPriceNet.toFixed(2) + " zł netto / " + (pr.customerPriceGross || 0).toFixed(2) + " zł brutto" : "—") + "</b>" +
+    (pr.listPriceGross != null ? " <span style='color:#666'>(katalogowa " + pr.listPriceGross.toFixed(2) + " zł)</span>" : "") + "<br>" +
+    "Dostępność: <b>" + (avail >= 10 ? "10+" : avail) + " szt.</b>" + (magi ? " <span style='color:#666'>(" + escHtml(magi) + ")</span>" : " — brak na stanie w Twojej ścieżce") +
+    '<div style="margin-top:6px"><button type="button" class="abtn" data-act="pfill">⬇ Wstaw nazwę i numer do wiersza</button></div>';
+  row.__icItem = it;
 }
-$("icTestBtn").addEventListener("click", async () => {
-  if (!icConfigured()) {
-    toast("Brak konfiguracji — w repozytorium potrzebny plik intercars-config.js z adresem Workera (instrukcja w rozmowie z Claude)");
-    return;
-  }
-  const out = $("icTestOut");
-  out.style.display = "block";
-  out.textContent = "Łączę z pośrednikiem i Inter Cars…";
-  try {
-    const r = await icFetch("/diag");
-    window.__icDiag = r.text;
-    out.textContent = r.text.slice(0, 4000);
-    $("icDiagCopy").style.display = "inline-block";
-    toast(r.status === 200 ? "Diagnostyka zakończona — skopiuj wynik i wklej w rozmowie z Claude" : "Pośrednik odpowiedział błędem " + r.status);
-  } catch (e) {
-    out.textContent = "✖ Nie udało się połączyć z Workerem: " + (e.message || e) + "\nSprawdź adres workerUrl w intercars-config.js.";
-  }
-});
 async function icQuoteRow(row) {
   if (!icConfigured()) { toast("Brak konfiguracji Inter Cars (plik intercars-config.js)"); return; }
   const idx = (row.querySelector(".p-cat").value || "").trim();
@@ -1222,24 +1258,11 @@ async function icQuoteRow(row) {
     if (!r.ok || !j) { box.textContent = "✖ Błąd IC (" + r.status + "): " + txt.slice(0, 200); return; }
     const items = Array.isArray(j) ? j : (j.lines || []);
     if (!items.length) { box.textContent = "✖ Brak danych dla „" + idx + "”."; return; }
-    const it = items[0], pr = it.price || {};
-    const avail = (it.lines || []).reduce((s, l) => s + (l.availability || 0), 0);
-    const magi = (it.lines || []).filter(l => l.availability > 0).map(l => l.location + ": " + l.availability).join(", ");
-    box.innerHTML =
-      "<b>" + escHtml(it.name || "") + "</b> <span style='color:#666'>(" + escHtml(it.index || idx) + ")</span><br>" +
-      "Cena dla warsztatu: <b>" + (pr.customerPriceNet != null ? pr.customerPriceNet.toFixed(2) + " zł netto / " + (pr.customerPriceGross || 0).toFixed(2) + " zł brutto" : "—") + "</b>" +
-      (pr.listPriceGross != null ? " <span style='color:#666'>(katalogowa " + pr.listPriceGross.toFixed(2) + " zł)</span>" : "") + "<br>" +
-      "Dostępność: <b>" + (avail >= 10 ? "10+" : avail) + " szt.</b>" + (magi ? " <span style='color:#666'>(" + escHtml(magi) + ")</span>" : " — brak na stanie w Twojej ścieżce") +
-      '<div style="margin-top:6px"><button type="button" class="abtn" data-act="pfill">⬇ Wstaw nazwę i numer do wiersza</button></div>';
-    row.__icItem = it;
+    renderIcResult(row, items[0], idx);
   } catch (e) {
     box.textContent = "✖ Nie udało się połączyć z pośrednikiem: " + (e.message || e);
   }
 }
-$("icDiagCopy").addEventListener("click", async () => {
-  const ok = await copyText(window.__icDiag || $("icTestOut").textContent);
-  toast(ok ? "📋 Skopiowano — wklej w rozmowie z Claude" : "Nie udało się skopiować");
-});
 
 /* ---------- skaner kodów z opakowań części (EAN / Code128 / DataMatrix / QR) ---------- */
 let barStream = null, barTimer = null, barBusy = false, barTarget = null;
@@ -2465,18 +2488,6 @@ function copyText(txt) {
   }
 }
 
-$("icVinBtn").addEventListener("click", async () => {
-  const vin = ($("f_vin").value || "").trim().toUpperCase();
-  if (!vin) {
-    setStatus("✖ Najpierw uzupełnij numer VIN (zeskanuj dowód lub wpisz ręcznie).", "err");
-    $("f_vin").focus();
-    return;
-  }
-  const ok = await copyText(vin);
-  toast(ok ? "📋 VIN " + vin + " skopiowany — wklej w wyszukiwarkę katalogu" : "Nie udało się skopiować VIN — przepisz go ręcznie");
-  window.open($("icCatalog").value, "_blank");
-});
-
 async function searchIC(partName) {
   if (!partName) { toast("Wpisz lub podyktuj nazwę części"); return; }
   const cat = $("icCatalog").value;
@@ -2497,17 +2508,6 @@ function startVoice(target, onDone) {
   toast("🎤 Powiedz nazwę części — mikrofon wyłączy się sam po pauzie");
   dictate(target, { mode: "replace", onDone });
 }
-$("partVoice").addEventListener("click", () => {
-  const row = addPartRow({}, false);
-  const inp = row.querySelector(".p-name");
-  if (!SR || !window.isSecureContext) {
-    inp.focus();
-    dictationFallback(inp);
-    toast("🎤 Podyktuj nazwę mikrofonem klawiatury, potem naciśnij „🔍 Inter Cars” przy części");
-    return;
-  }
-  startVoice(inp, val => { if (val) searchIC(val); });
-});
 
 /* ==================== EKSPORT CSV / UDOSTĘPNIANIE ==================== */
 function csvCell(v) {
