@@ -186,7 +186,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 60</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 61</b></small>
   </div>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
@@ -278,7 +278,6 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <div class="checks">
       <label><input type="checkbox" id="w_dowod"> dowód rej.</label>
       <label><input type="checkbox" id="w_klucz"> kluczyk / pilot <input type="text" id="w_klucz_szt" placeholder="szt." style="width:52px;padding:3px 6px;font-size:13px"></label>
-      <label><input type="checkbox" id="w_kolo"> koło zapasowe / zestaw</label>
     </div>
     <div style="margin-top:10px"><label class="f">Widoczne uszkodzenia, kontrolki, inne rzeczy w pojeździe</label>
       <textarea id="f_stan" rows="3" placeholder="np. rysa na tylnym zderzaku, kontrolka check engine, fotelik dziecięcy na tylnej kanapie"></textarea></div>
@@ -312,9 +311,9 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       <label class="f" style="margin:0">Objawy i zlecony zakres prac</label>
       <button type="button" class="micbtn" id="mic_usterki" title="Mikrofon wyłączy się sam po pauzie w mówieniu">🎤 Dyktuj</button>
     </div>
-    <div id="tmplRow" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
-    <textarea id="f_usterki" rows="6" placeholder="Objawy zgłaszane przez klienta oraz zlecony zakres prac — wpisz, podyktuj lub użyj szablonu powyżej"></textarea>
+    <textarea id="f_usterki" rows="6" placeholder="Objawy zgłaszane przez klienta oraz zlecony zakres prac — wpisz lub podyktuj"></textarea>
     <div class="grid g2" style="margin-top:10px">
+      <div><label class="f">Przewidywany termin wykonania</label><input type="text" id="f_termin"></div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
           <label class="f" style="margin:0">Cena usługi / robocizna (zł)</label>
@@ -322,7 +321,6 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
         </div>
         <input type="text" id="f_uslugi" inputmode="decimal" placeholder="zł — wpisuje pracownik">
       </div>
-      <div><label class="f">Przewidywany termin wykonania</label><input type="text" id="f_termin" style="margin-top:23px"></div>
     </div>
     <div class="grid g2" style="margin-top:10px">
       <div><label class="f">Razem części (z tabeli, automatycznie)</label>
@@ -347,7 +345,6 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
       <button type="button" class="abtn" id="quoteAllBtn" style="background:#e8f0fe;color:#174ea6;font-weight:bold">💶 Wyceń wszystkie (IC)</button>
       <button type="button" class="abtn" id="zamBtn" style="background:#fce4ec;color:#ad1457;font-weight:bold">🛒 Zamów w IC</button>
-      <button type="button" class="abtn" id="ecatBtn" style="background:#fff3e0;color:#e65100">🔍 Katalog IC — dobór po VIN</button>
     </div>
     <div id="icVehBadge" style="display:none;background:#e8f5e9;border:1.5px solid #2e7d32;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:14px"></div>
     <div class="parts-head">
@@ -356,7 +353,6 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <div id="partsList" class="parts-list"></div>
     <div id="partsSum" style="display:none;text-align:right;font-weight:bold;margin-top:8px;font-size:16px"></div>
     <div id="zamHist" style="display:none;background:#fce4ec;border:1.5px solid #ad1457;border-radius:10px;padding:8px 12px;margin-top:8px;font-size:14px"></div>
-    <div class="hint">„🔍 Katalog IC” otwiera sklep intercars.pl — na zapamiętanym pojeździe, a bez niego z VIN-em w schowku do kreatora „Dobierz do auta”. Wybraną część dodaje się linkiem: Udostępnij → Kopiuj → 📥 (aplikacja sama uzupełni nazwę, numer i cenę). „💶 Wyceń wszystkie” pokazuje ceny zakupu — wyłącznie na ekranie, nigdy na wydruku dla klienta.</div>
   </div>
 </div>
 
@@ -1204,25 +1200,7 @@ async function icQuoteAll() {
 $("quoteAllBtn").addEventListener("click", icQuoteAll);
 
 /* mostek do Inter Cars e-Catalog: kopiuje VIN (lub nr rej.) i otwiera katalog */
-$("ecatBtn").addEventListener("click", async () => {
-  if (currentIcType) {
-    toast("🚗 Otwieram sklep na zapamiętanym pojeździe: " + (currentIcTypeLabel || ""));
-    window.open("https://intercars.pl/oferta/&type=" + currentIcType, "_blank");
-    return;
-  }
-  const vin = ($("f_vin").value || "").trim();
-  const rej = ($("f_rej").value || "").trim();
-  const val = vin || rej;
-  if (!val) {
-    toast("Brak VIN i nr rejestracyjnego — zeskanuj dowód, otwieram sam katalog");
-  } else {
-    const ok = await copyText(val);
-    toast(ok
-      ? "📋 Skopiowano " + (vin ? "VIN " : "nr rej. ") + val + " — wybierz pojazd, wejdź w dowolną kategorię i skopiuj adres strony, a 📥 zapamięta auto"
-      : "Nie udało się skopiować — przepisz: " + val);
-  }
-  setTimeout(() => { window.open("https://intercars.pl/partsfinder", "_blank"); }, 400);
-});
+
 
 /* ---------- Inter Cars API (przez bezpieczny Worker) ---------- */
 function icConfigured() {
@@ -1466,7 +1444,6 @@ function printDoc() {
   $("p_wyposazenie").textContent = checksLine([
     ["dowód rej.", $("w_dowod").checked],
     ["kluczyk / pilot" + ($("w_klucz_szt").value ? " (szt. " + $("w_klucz_szt").value + ")" : ""), $("w_klucz").checked],
-    ["koło zapasowe / zestaw", $("w_kolo").checked],
   ]);
   $("p_stan").textContent = txt($("f_stan").value);
   $("p_usterki").textContent = txt($("f_usterki").value);
@@ -1813,7 +1790,7 @@ $("odbNow").addEventListener("click", () => {
 const TXT_IDS = ["f_nr","f_data","f_godz","f_marka","f_model","f_wersja","f_rok","f_przebieg","f_rej","f_vin","f_datarej1","f_pojemnosc","f_moc","f_rodzpaliwa",
                  "f_paliwo","f_klient","f_nip","f_adres","f_tel","f_stan","f_usterki","f_uslugi","f_koszt","f_termin","w_klucz_szt",
                  "f_odb_data","f_odb_godz","f_prace","f_przyp_kiedy","f_przyp_txt"];
-const CHK_IDS = ["w_dowod","w_klucz","w_kolo","c_oryg","c_zam","c_uzyw","c_klient"];
+const CHK_IDS = ["w_dowod","w_klucz","c_oryg","c_zam","c_uzyw","c_klient"];
 
 function getFormData() {
   const d = {};
@@ -1895,36 +1872,6 @@ $("dmgUndo").addEventListener("click", () => { currentDmg.pop(); renderDmg(); sc
 $("dmgClear").addEventListener("click", () => { currentDmg = []; renderDmg(); scheduleDraft(); });
 
 /* ==================== SZABLONY ZLECEŃ ==================== */
-const TMPL_KEY = "asko_szablony_v1";
-const TMPL_DEFAULT = [
-  { n: "🛢 Olej + filtry", u: "Wymiana oleju silnikowego i filtra oleju; kontrola/wymiana filtra powietrza i kabinowego.", cz: [["Olej silnikowy", "1 kpl", ""], ["Filtr oleju", "1", ""], ["Filtr powietrza", "1", ""], ["Filtr kabinowy", "1", ""]] },
-  { n: "🛑 Klocki przód", u: "Wymiana klocków hamulcowych przód; kontrola tarcz, przewodów i płynu hamulcowego.", cz: [["Klocki hamulcowe przód", "1 kpl", ""]] },
-  { n: "🛑 Tarcze+klocki przód", u: "Wymiana tarcz i klocków hamulcowych przód.", cz: [["Tarcze hamulcowe przód", "2", ""], ["Klocki hamulcowe przód", "1 kpl", ""]] },
-  { n: "⚙️ Rozrząd", u: "Wymiana rozrządu wraz z pompą wody; wymiana płynu chłodniczego.", cz: [["Zestaw rozrządu", "1 kpl", ""], ["Pompa wody", "1", ""], ["Płyn chłodniczy", "wg potrzeb", ""]] },
-  { n: "❄️ Klima przegląd", u: "Przegląd klimatyzacji: kontrola szczelności, uzupełnienie czynnika, odgrzybianie, wymiana filtra kabinowego.", cz: [["Czynnik klimatyzacji", "wg potrzeb", ""], ["Filtr kabinowy", "1", ""]] },
-  { n: "🔌 Diagnostyka", u: "Diagnostyka komputerowa, odczyt i analiza błędów, jazda próbna.", cz: [] },
-];
-function loadTmpl() {
-  try { const t = JSON.parse(localStorage.getItem(TMPL_KEY) || "null"); if (Array.isArray(t) && t.length) return t; } catch (e) {}
-  return TMPL_DEFAULT;
-}
-function renderTmpl() {
-  $("tmplRow").innerHTML = loadTmpl().map((t, i) =>
-    '<button type="button" class="abtn" data-tmpl="' + i + '">' + escHtml(t.n) + '</button>').join("");
-}
-$("tmplRow").addEventListener("click", ev => {
-  const b = ev.target.closest("button[data-tmpl]");
-  if (!b) return;
-  const t = loadTmpl()[+b.dataset.tmpl];
-  if (!t) return;
-  const u = $("f_usterki");
-  u.value = (u.value ? u.value.replace(/\s+$/, "") + "\n" : "") + t.u;
-  (t.cz || []).forEach(c => addPartRow({ n: c[0], il: c[1], nr: c[2] }));
-  scheduleDraft();
-  updateTodo();
-  toast("Szablon dodany: " + t.n.replace(/^\S+\s/, ""));
-});
-
 /* ==================== PAMIĘĆ STAŁEGO KLIENTA (po VIN / nr rej) ==================== */
 function historyLookup() {
   const vin = ($("f_vin").value || "").trim().toUpperCase();
@@ -2778,7 +2725,6 @@ function shareOrder(rec) {
   loadZx().then(engineNote);
   cloudInit();
   document.querySelectorAll(".car-outline").forEach(g => { g.innerHTML = CAR_OUTLINE; });
-  renderTmpl();
   renderDmg();
   if (/[?&]r=\d+/.test(location.search)) {
     try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
