@@ -29,9 +29,15 @@
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#ececec;color:var(--dark);font-size:15px}
 .wrap{max-width:900px;margin:0 auto;padding:12px}
-header.app{display:flex;align-items:center;gap:14px;background:#fff;border-bottom:4px solid var(--orange);padding:10px 16px}
-header.app img{height:52px}
-header.app h1{font-size:19px;margin:0;color:var(--dark)}
+header.app{display:flex;align-items:center;gap:10px;background:#fff;border-bottom:4px solid var(--orange);padding:8px 10px}
+header.app img{height:44px;flex:0 0 auto}
+header.app h1{font-size:17px;margin:0;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:430px){
+  header.app{gap:8px}
+  header.app h1{font-size:15.5px}
+  header.app img{height:38px}
+  #reloadBtn,#cloudBtn,#topArch{width:42px!important;height:42px!important;font-size:18px!important;border-radius:9px!important}
+}
 header.app h1 span{color:var(--orange)}
 header.app small{color:var(--grey)}
 .card{background:#fff;border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden}
@@ -185,10 +191,10 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <header class="app">
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
-    <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 62</b></small>
+    <h1>Asystent zlecenia <span>ASKO</span></h1>
+    <small><b style="color:var(--orange)">wersja 63</b></small>
   </div>
-  <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto">↻</button>
+  <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto;flex:0 0 auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
 </header>
