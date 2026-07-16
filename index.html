@@ -186,7 +186,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 48</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 49</b></small>
   </div>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
@@ -1107,6 +1107,23 @@ function renderIcResult(row, it, idx) {
     "Dostępność: <b>" + (avail >= 10 ? "10+" : avail) + " szt.</b>" + (magi ? " <span style='color:#666'>(" + escHtml(magi) + ")</span>" : " — brak na stanie w Twojej ścieżce") +
     '<div style="margin-top:6px"><button type="button" class="abtn" data-act="pfill">⬇ Wstaw nazwę i numer do wiersza</button></div>';
   row.__icItem = it;
+}
+async function szukajDlaAuta(row) {
+  const nazwa = (row.querySelector(".p-name").value || "").trim();
+  if (!nazwa) { toast("Najpierw wpisz nazwę części w tym wierszu (np. „filtr paliwa”)"); return; }
+  if (!currentIcType) {
+    /* pojazd sklepowy jeszcze nie zapamiętany — prowadzimy przez jednorazowy krok */
+    const vin = ($("f_vin").value || "").trim();
+    if (vin) await copyText(vin);
+    toast("🚗 Najpierw zapamiętaj pojazd (raz na zlecenie): w sklepie wybierz auto" + (vin ? " (VIN w schowku — „Wklej”)" : "") + ", wejdź w dowolną kategorię, skopiuj adres strony i wciśnij 📥");
+    setTimeout(() => { window.open("https://intercars.pl/partsfinder", "_blank"); }, 500);
+    return;
+  }
+  let b64 = "";
+  try { b64 = btoa(unescape(encodeURIComponent(nazwa))); } catch (e) {}
+  await copyText(nazwa);
+  toast("🔎 Szukam „" + nazwa + "” dla: " + (currentIcTypeLabel || "zapamiętanego auta") + " — wybraną część dodasz linkiem: Udostępnij → Kopiuj → 📥");
+  window.open("https://intercars.pl/oferta/" + (b64 ? "&search=" + encodeURIComponent(b64) : "") + "&type=" + currentIcType, "_blank");
 }
 let currentIcType = "", currentIcTypeLabel = "";
 function renderIcVeh() {
@@ -2377,6 +2394,7 @@ function partRowHtml(pt) {
     '<input type="text" class="p-cat" placeholder="Nr katalogowy / uwagi" value="' + escHtml(pt.nr || "") + '">' +
     '<input type="text" class="p-price" inputmode="decimal" placeholder="Cena dla klienta (zł)" value="' + escHtml(pt.c || "") + '">' +
     '<div class="p-btns">' +
+    '<button type="button" class="abtn open" data-act="pvin" style="font-weight:bold">🔎 Szukaj dla tego auta</button>' +
     '<button type="button" class="abtn" data-act="pscan">📷 Skan z pudełka</button>' +
     '<button type="button" class="abtn" data-act="pnr">📥 Wklej ze sklepu</button>' +
     '<button type="button" class="abtn del" data-act="pdel">✖</button>' +
@@ -2410,6 +2428,7 @@ $("partsList").addEventListener("click", ev => {
   const nameInp = row.querySelector(".p-name");
   const act = btn.dataset.act;
   if (act === "pdel") { row.remove(); scheduleDraft(); }
+  else if (act === "pvin") { szukajDlaAuta(row); }
   else if (act === "pscan") { startBarScan(row.querySelector(".p-cat")); }
   else if (act === "pfill") {
     const it = row.__icItem;
