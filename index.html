@@ -60,6 +60,8 @@ input[type=text],input[type=date],input[type=time],input[type=number],select,tex
   width:100%;border:1px solid var(--border);border-radius:7px;padding:9px 10px;font-size:15px;font-family:inherit;background:#fff}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);border-color:var(--orange)}
 input.scanned{background:#fff7ec;border-color:var(--orange)}
+.miss{border-color:#d32f2f!important;background:#ffebee!important}
+.missmark{display:block;color:#d32f2f;font-weight:bold;font-size:13px;margin-top:3px}
 .todo{background:#e8f5e9 !important;border-color:#2e7d32 !important}
 textarea{resize:vertical}
 .checks{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:4px}
@@ -183,7 +185,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 39</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 41</b></small>
   </div>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
@@ -205,7 +207,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     </div>
     <div id="reader"></div>
     <div id="status"></div>
-    <div class="hint" id="engineInfo" style="margin-top:6px"></div>
+    <div class="hint" id="engineInfo" style="display:none"></div>
     <button type="button" class="abtn" id="diagBtn" style="display:none;margin-top:8px">📋 Skopiuj diagnostykę odczytu</button>
   </div>
 </div>
@@ -276,9 +278,6 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       <label><input type="checkbox" id="w_dowod"> dowód rej.</label>
       <label><input type="checkbox" id="w_klucz"> kluczyk / pilot <input type="text" id="w_klucz_szt" placeholder="szt." style="width:52px;padding:3px 6px;font-size:13px"></label>
       <label><input type="checkbox" id="w_kolo"> koło zapasowe / zestaw</label>
-      <label><input type="checkbox" id="w_gasnica"> gaśnica</label>
-      <label><input type="checkbox" id="w_trojkat"> trójkąt</label>
-      <label><input type="checkbox" id="w_radio"> radio / panel</label>
     </div>
     <div style="margin-top:10px"><label class="f">Widoczne uszkodzenia, kontrolki, inne rzeczy w pojeździe</label>
       <textarea id="f_stan" rows="3" placeholder="np. rysa na tylnym zderzaku, kontrolka check engine, fotelik dziecięcy na tylnej kanapie"></textarea></div>
@@ -338,24 +337,14 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <h2><span class="num">7</span> ZASTOSOWANE CZĘŚCI</h2>
   <div class="body">
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
-      <button type="button" class="abtn open" id="autoPartsBtn" style="font-weight:bold">🧠 Dobierz części z opisu (VIN + historia)</button>
       <button type="button" class="abtn" id="quoteAllBtn" style="background:#e8f0fe;color:#174ea6;font-weight:bold">💶 Wyceń wszystkie (IC)</button>
-      <button type="button" class="abtn" id="ecatBtn" style="background:#fff3e0;color:#e65100">🔍 e-Catalog (kopiuje VIN)</button>
-      <button type="button" class="abtn" id="oeBtn" style="background:#f3e5f5;color:#6a1b9a">🌍 Katalog OE (PartSouq, VIN)</button>
+      <button type="button" class="abtn" id="ecatBtn" style="background:#fff3e0;color:#e65100">🔍 Katalog IC — dobór po VIN</button>
     </div>
     <div class="parts-head">
       <button type="button" class="btn btn-orange" id="partAdd">＋ Dodaj część</button>
     </div>
     <div id="partsList" class="parts-list"></div>
-    <div class="hint">Lista części drukuje się w tabeli „Części i materiały” i zapisuje w archiwum. Wybrany niżej katalog otwierają przyciski „🔍 e-Catalog” (u góry) i „🔍 Inter Cars” przy wierszu części.</div>
-    <div class="hint" style="margin-top:6px">Katalog Inter Cars:
-      <select id="icCatalog" style="width:auto;display:inline-block;font-size:13px;padding:4px 28px 4px 8px;margin-left:4px">
-        <option value="https://pl.e-cat.intercars.eu/">e-Catalog (warsztatowy, wymaga logowania)</option>
-        <option value="https://e-katalog.intercars.com.pl/ekatalog">eKatalog (publiczny)</option>
-        <option value="https://intercars.pl/oferta">intercars.pl/oferta — publiczna, dobór po VIN, bez logowania</option>
-        <option value="google">Google (szybko, bez logowania)</option>
-      </select>
-    </div>
+    <div class="hint">„🔍 Katalog IC” otwiera dobór po VIN na intercars.pl (VIN w schowku — tylko „Wklej”). „🔍 Inter Cars” przy wierszu wyszukuje nazwę części od razu w sklepie. Dobrany numer wraca do zlecenia przyciskiem 📥, a „💶 Wyceń wszystkie” pokazuje ceny zakupu — wyłącznie na ekranie, nigdy na wydruku dla klienta.</div>
   </div>
 </div>
 
@@ -1027,132 +1016,12 @@ async function stopLive() {
 $("liveBtn").addEventListener("click", startLive);
 $("liveStop").addEventListener("click", stopLive);
 
-/* ---------- automatyczny dobór części z opisu + historii (po VIN) ---------- */
+/* ---------- narzędzia tekstowe ---------- */
 function deacc(s) {
   return (s || "").toLowerCase()
     .replace(/ą/g, "a").replace(/ć/g, "c").replace(/ę/g, "e").replace(/ł/g, "l")
     .replace(/ń/g, "n").replace(/ó/g, "o").replace(/ś/g, "s").replace(/ż/g, "z").replace(/ź/g, "z");
 }
-/* re: wykrycie w opisie · base: rdzeń do dopasowania w historii · name: nazwa wiersza · side: czy rozróżniać przód/tył */
-const PART_RULES = [
-  { re: /klock/i, base: "klock", name: "Klocki hamulcowe", side: true },
-  { re: /tarcz/i, base: "tarcz", name: "Tarcze hamulcowe", side: true, skipIf: /sprz[eę]g/i },
-  { re: /olej/i, base: "olej silnikowy", name: "Olej silnikowy", extra: { base: "filtr oleju", name: "Filtr oleju" } },
-  { re: /filtr\w*\s+powietrza/i, base: "powietrza", name: "Filtr powietrza" },
-  { re: /kabinow|przeciwpy[łl]k/i, base: "kabinow", name: "Filtr kabinowy" },
-  { re: /filtr\w*\s+paliwa/i, base: "filtr paliwa", name: "Filtr paliwa" },
-  { re: /rozrz[ąa]d/i, base: "rozrzad", name: "Zestaw rozrządu" },
-  { re: /pomp\w*\s+wody/i, base: "pompa wody", name: "Pompa wody" },
-  { re: /sprz[ęe]g[łl]/i, base: "sprzeg", name: "Zestaw sprzęgła" },
-  { re: /dwumas/i, base: "dwumas", name: "Koło dwumasowe" },
-  { re: /amortyzator/i, base: "amortyzator", name: "Amortyzatory", side: true },
-  { re: /spr[ęe][żz]yn/i, base: "sprezyn", name: "Sprężyny zawieszenia", side: true },
-  { re: /[żz]arow/i, base: "zarow", name: "Świece żarowe" },
-  { re: /[śs]wiec/i, base: "swiec", name: "Świece zapłonowe", skipIf: /[żz]arow/i },
-  { re: /akumulator/i, base: "akumulator", name: "Akumulator" },
-  { re: /alternator/i, base: "alternator", name: "Alternator" },
-  { re: /rozruszni/i, base: "rozruszni", name: "Rozrusznik" },
-  { re: /ch[łl]odnic/i, base: "chlodnic", name: "Chłodnica" },
-  { re: /termostat/i, base: "termostat", name: "Termostat" },
-  { re: /[łl]o[żz]ysk/i, base: "lozysk", name: "Łożysko koła", side: true },
-  { re: /przegub/i, base: "przegub", name: "Przegub napędowy" },
-  { re: /ko[ńn]c[óo]wk\w*\s+dr[ąa][żz]k|dr[ąa][żz]ek kierownicz/i, base: "koncowk", name: "Końcówka drążka kierowniczego" },
-  { re: /wahacz/i, base: "wahacz", name: "Wahacz", side: true },
-  { re: /[łl][ąa]cznik\w*\s+stab|stabilizator/i, base: "stabilizator", name: "Łącznik stabilizatora", side: true },
-  { re: /pas(ek|ka)\s+(klinow|wielorowk|osprz)|pasek nap[ęe]d/i, base: "pasek", name: "Pasek osprzętu" },
-  { re: /t[łl]umik/i, base: "tlumik", name: "Tłumik" },
-  { re: /lambda/i, base: "lambda", name: "Sonda lambda" },
-  { re: /czujnik\w*\s+abs/i, base: "abs", name: "Czujnik ABS", side: true },
-  { re: /wycieraczk|pi[óo]r\w*\s+wycier/i, base: "wycierac", name: "Pióra wycieraczek" },
-  { re: /[żz]ar[óo]wk/i, base: "zarowk", name: "Żarówka" },
-  { re: /p[łl]yn\w*\s+hamulc/i, base: "plyn hamulc", name: "Płyn hamulcowy" },
-  { re: /turbo/i, base: "turbo", name: "Turbosprężarka" },
-  { re: /wtrysk/i, base: "wtrysk", name: "Wtryskiwacz" },
-];
-function sideOfLine(line) {
-  const l = deacc(line), out = [];
-  if (/prz[o]d|przedni/.test(l)) out.push("p");
-  if (/\bty[l]\b|tyln|tylni/.test(l)) out.push("t");
-  return out;
-}
-function extractParts(text) {
-  const found = [], seen = {};
-  (text || "").split(/[\n.;]+/).forEach(line => {
-    if (!line.trim()) return;
-    const sides = sideOfLine(line);
-    PART_RULES.forEach(rule => {
-      if (!rule.re.test(line)) return;
-      if (rule.skipIf && rule.skipIf.test(line)) return;
-      const variants = (rule.side && sides.length) ? sides : [null];
-      variants.forEach(sd => {
-        const name = rule.name + (sd === "p" ? " przód" : sd === "t" ? " tył" : "");
-        const key = deacc(name);
-        if (seen[key]) return;
-        seen[key] = 1;
-        found.push({ name: name, base: rule.base, side: sd });
-      });
-      if (rule.extra) {
-        const key2 = deacc(rule.extra.name);
-        if (!seen[key2]) { seen[key2] = 1; found.push({ name: rule.extra.name, base: rule.extra.base, side: null }); }
-      }
-    });
-  });
-  return found;
-}
-function histPartIndex(prop) {
-  /* szuka numeru katalogowego w historii: najpierw ten sam VIN, potem ta sama marka+model */
-  const vin = deacc(($("f_vin").value || "").trim());
-  const mk = deacc(($("f_marka").value || "").trim()), md = deacc(($("f_model").value || "").trim());
-  const all = loadAll().slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
-  const passes = [
-    r => vin && deacc((r.data || {}).f_vin || "").trim() === vin,
-    r => mk && md && deacc((r.data || {}).f_marka || "").trim() === mk && deacc((r.data || {}).f_model || "").trim() === md,
-  ];
-  for (const pass of passes) {
-    for (const r of all) {
-      if (r.id === currentId || !pass(r)) continue;
-      for (const cz of ((r.data || {}).czesci || [])) {
-        if (!cz.nr || !cz.n) continue;
-        const n = deacc(cz.n);
-        if (n.indexOf(prop.base) === -1) continue;
-        if (prop.side === "p" && !/przod|przedni/.test(n)) continue;
-        if (prop.side === "t" && !(/\btyl\b|tyln/.test(n))) continue;
-        if (!prop.side && /przod|przedni|\btyl\b|tyln/.test(n) && PART_RULES.some(x => x.base === prop.base && x.side)) { /* bok nieokreślony — bierz cokolwiek */ }
-        return { nr: cz.nr, name: cz.n, zrodlo: pass === passes[0] ? "VIN" : "model" };
-      }
-    }
-  }
-  return null;
-}
-async function proponujCzesci() {
-  const props = extractParts($("f_usterki").value);
-  if (!props.length) { toast("Nie rozpoznałem części w opisie usterek (sekcja 6) — dopisz np. „wymiana klocków przód”"); return; }
-  const existing = getParts().map(c => deacc(c.n));
-  let added = 0, zHist = 0;
-  const rowsToQuote = [];
-  props.forEach(prop => {
-    if (existing.some(n => n.indexOf(deacc(prop.name)) !== -1)) return;
-    const hist = histPartIndex(prop);
-    addPartRow({ n: hist ? hist.name : prop.name, il: "1", nr: hist ? hist.nr : "" });
-    added++;
-    if (hist) {
-      zHist++;
-      const rows = $("partsList").querySelectorAll(".part-row");
-      rowsToQuote.push(rows[rows.length - 1]);
-    }
-  });
-  scheduleDraft();
-  if (!added) { toast("Wszystkie rozpoznane części są już na liście"); return; }
-  toast("🧠 Dodano " + added + " część(i), w tym " + zHist + " z numerami z historii tego auta" +
-    (zHist && icConfigured() ? " — sprawdzam ceny w Inter Cars…" : ""));
-  if (icConfigured()) {
-    for (const row of rowsToQuote.slice(0, 8)) {
-      await icQuoteRow(row);
-      await new Promise(res => setTimeout(res, 400));
-    }
-  }
-}
-$("autoPartsBtn").addEventListener("click", proponujCzesci);
 
 /* wycena zbiorcza — jedno zapytanie o wszystkie wiersze z numerami */
 async function icQuoteAll() {
@@ -1200,26 +1069,10 @@ $("ecatBtn").addEventListener("click", async () => {
   } else {
     const ok = await copyText(val);
     toast(ok
-      ? "📋 Skopiowano " + (vin ? "VIN " : "nr rej. ") + val + " — w e-Catalogu przytrzymaj pole wyszukiwania i wybierz „Wklej”"
+      ? "📋 Skopiowano " + (vin ? "VIN " : "nr rej. ") + val + " — w kreatorze „Dobierz do auta” przytrzymaj pole i wybierz „Wklej”"
       : "Nie udało się skopiować — przepisz: " + val);
   }
-  const cat = ($("icCatalog").value && $("icCatalog").value !== "google") ? $("icCatalog").value : "https://pl.e-cat.intercars.eu/";
-  setTimeout(() => { window.open(cat, "_blank"); }, 400);
-});
-
-/* katalog fabryczny OE — PartSouq przyjmuje VIN wprost w adresie */
-$("oeBtn").addEventListener("click", () => {
-  const vin = ($("f_vin").value || "").trim().toUpperCase();
-  if (!vin) {
-    toast("Brak numeru VIN w zleceniu — zeskanuj dowód lub wpisz VIN, wtedy katalog otworzy się od razu na tym aucie");
-    return;
-  }
-  if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
-    toast("VIN wygląda na niepełny (" + vin.length + "/17 znaków) — otwieram katalog, sprawdź numer");
-  } else {
-    toast("🌍 Otwieram katalog fabryczny dla VIN " + vin + " — ceny tam są orientacyjne, kupujesz w IC");
-  }
-  window.open("https://partsouq.com/en/search/all?q=" + encodeURIComponent(vin), "_blank");
+  setTimeout(() => { window.open("https://intercars.pl/partsfinder", "_blank"); }, 400);
 });
 
 /* ---------- Inter Cars API (przez bezpieczny Worker) ---------- */
@@ -1336,7 +1189,12 @@ function checksLine(items) {
   return items.map(([label, on]) => (on ? "☒ " : "☐ ") + label).join("   ");
 }
 function printDoc() {
-  try { saveOrder(true); } catch (e) {}
+  let saved = null;
+  try { saved = saveOrder(true); } catch (e) {}
+  if (!saved) {
+    toast("❗ Wydruk wstrzymany — uzupełnij wymagane pola oznaczone ❗");
+    return;
+  }
   $("p_nr").textContent = txt($("f_nr").value);
   $("p_data").textContent = $("f_data").value ? $("f_data").value.split("-").reverse().join(".") : "";
   $("p_godz").textContent = txt($("f_godz").value);
@@ -1356,9 +1214,6 @@ function printDoc() {
     ["dowód rej.", $("w_dowod").checked],
     ["kluczyk / pilot" + ($("w_klucz_szt").value ? " (szt. " + $("w_klucz_szt").value + ")" : ""), $("w_klucz").checked],
     ["koło zapasowe / zestaw", $("w_kolo").checked],
-    ["gaśnica", $("w_gasnica").checked],
-    ["trójkąt", $("w_trojkat").checked],
-    ["radio / panel", $("w_radio").checked],
   ]);
   $("p_stan").textContent = txt($("f_stan").value);
   $("p_usterki").textContent = txt($("f_usterki").value);
@@ -1701,7 +1556,7 @@ $("odbNow").addEventListener("click", () => {
 const TXT_IDS = ["f_nr","f_data","f_godz","f_marka","f_model","f_wersja","f_rok","f_przebieg","f_rej","f_vin","f_datarej1","f_pojemnosc","f_moc","f_rodzpaliwa",
                  "f_paliwo","f_klient","f_nip","f_adres","f_tel","f_stan","f_usterki","f_koszt","f_termin","w_klucz_szt",
                  "f_odb_data","f_odb_godz","f_prace","f_przyp_kiedy","f_przyp_txt"];
-const CHK_IDS = ["w_dowod","w_klucz","w_kolo","w_gasnica","w_trojkat","w_radio","c_oryg","c_zam","c_uzyw","c_klient"];
+const CHK_IDS = ["w_dowod","w_klucz","w_kolo","c_oryg","c_zam","c_uzyw","c_klient"];
 
 function getFormData() {
   const d = {};
@@ -2069,6 +1924,13 @@ function saveOrder(silent) {
     if (!silent) { setStatus("✖ Uzupełnij dane przed zapisem (klient, nr rejestracyjny, marka lub opis usterek).", "err"); toast("✖ Formularz jest pusty — nie zapisano"); }
     return null;
   }
+  const braki = checkRequired();
+  if (braki.length) {
+    setStatus("❗ Nie zapisano — uzupełnij wymagane pola: " + braki.map(id => TODO_NAMES[id] || id).join(", ") + ".", "err");
+    toast("❗ Uzupełnij wymagane pola (" + braki.length + ")");
+    try { $(braki[0]).scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
+    return null;
+  }
   const list = loadAll();
   const now = new Date().toISOString();
   let rec = currentId ? list.find(r => r.id === currentId) : null;
@@ -2394,7 +2256,32 @@ $("impInput").addEventListener("change", ev => {
 /* ==================== AUTOZAPIS SZKICU ==================== */
 const TODO_IDS = ["f_przebieg", "f_paliwo", "f_tel", "f_usterki", "f_koszt", "f_termin"];
 function updateTodo() {
-  TODO_IDS.forEach(id => { const el = $(id); el.classList.toggle("todo", !el.value); });
+  TODO_IDS.forEach(id => {
+    const el = $(id);
+    el.classList.toggle("todo", !el.value);
+    if (el.value) {
+      el.classList.remove("miss");
+      const m = $("miss_" + id);
+      if (m) m.remove();
+    }
+  });
+}
+const TODO_NAMES = { f_przebieg: "przebieg", f_paliwo: "poziom paliwa", f_tel: "telefon klienta", f_usterki: "opis usterek", f_koszt: "przewidywany koszt", f_termin: "termin odbioru" };
+function checkRequired() {
+  const missing = TODO_IDS.filter(id => !($(id).value || "").trim());
+  TODO_IDS.forEach(id => {
+    const el = $(id), bad = missing.indexOf(id) !== -1;
+    el.classList.toggle("miss", bad);
+    let m = $("miss_" + id);
+    if (bad && !m) {
+      m = document.createElement("span");
+      m.className = "missmark";
+      m.id = "miss_" + id;
+      m.textContent = "❗ Uzupełnij to pole";
+      el.insertAdjacentElement("afterend", m);
+    } else if (!bad && m) { m.remove(); }
+  });
+  return missing;
 }
 document.querySelector(".app-ui").addEventListener("input", () => { scheduleDraft(); updateTodo(); });
 document.querySelector(".app-ui").addEventListener("change", () => { scheduleDraft(); updateTodo(); });
@@ -2470,16 +2357,6 @@ $("partsList").addEventListener("click", ev => {
 });
 
 /* ==================== INTER CARS ==================== */
-const IC_KEY = "asko_ic_catalog";
-(function initIcSelect() {
-  let saved = "";
-  try { saved = localStorage.getItem(IC_KEY) || ""; } catch (e) {}
-  if (saved) $("icCatalog").value = saved;
-  $("icCatalog").addEventListener("change", () => {
-    try { localStorage.setItem(IC_KEY, $("icCatalog").value); } catch (e) {}
-  });
-})();
-
 function copyText(txt) {
   return new Promise(res => {
     if (navigator.clipboard && window.isSecureContext) {
@@ -2500,17 +2377,13 @@ function copyText(txt) {
 
 async function searchIC(partName) {
   if (!partName) { toast("Wpisz lub podyktuj nazwę części"); return; }
-  const cat = $("icCatalog").value;
-  if (cat === "google") {
-    const auto = [$("f_marka").value, $("f_model").value, $("f_rok").value].map(s => (s || "").trim()).filter(Boolean).join(" ");
-    const q = [partName, auto, "intercars"].filter(Boolean).join(" ");
-    window.open("https://www.google.com/search?q=" + encodeURIComponent(q), "_blank");
-    return;
-  }
-  const ok = await copyText(partName);
-  toast(ok ? "📋 „" + partName + "” w schowku — wklej w wyszukiwarkę katalogu (pojazd wybierz raz po VIN)"
-           : "Otwieram katalog — wpisz: " + partName);
-  window.open(cat, "_blank");
+  await copyText(partName);
+  let b64 = "";
+  try { b64 = btoa(unescape(encodeURIComponent(partName))); } catch (e) {}
+  toast("🔍 Szukam w intercars.pl: „" + partName + "” (fraza także w schowku)");
+  window.open(b64
+    ? "https://intercars.pl/oferta/&search=" + encodeURIComponent(b64)
+    : "https://intercars.pl/oferta", "_blank");
 }
 
 /* ==================== GŁOS — uniwersalne dyktowanie ==================== */
