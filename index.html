@@ -186,7 +186,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia naprawy <span>ASKO</span></h1>
-    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 49</b></small>
+    <small>Zeskanuj kod Aztec z dowodu rejestracyjnego — formularz wypełni się sam <b style="color:var(--orange)">· wersja 50</b></small>
   </div>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
@@ -1115,7 +1115,9 @@ async function szukajDlaAuta(row) {
     /* pojazd sklepowy jeszcze nie zapamiętany — prowadzimy przez jednorazowy krok */
     const vin = ($("f_vin").value || "").trim();
     if (vin) await copyText(vin);
-    toast("🚗 Najpierw zapamiętaj pojazd (raz na zlecenie): w sklepie wybierz auto" + (vin ? " (VIN w schowku — „Wklej”)" : "") + ", wejdź w dowolną kategorię, skopiuj adres strony i wciśnij 📥");
+    setStatus("🚗 JEDNORAZOWO dla tego auta: 1) w sklepie wybierz pojazd" + (vin ? " (VIN masz w schowku — przytrzymaj pole i „Wklej”)" : "") +
+      " → 2) dotknij PASKA ADRESU u góry i skopiuj adres (musi zawierać „type=” — nie używaj przycisku Udostępnij!) → 3) wróć tu i wciśnij 📥 przy dowolnej części. Pojawi się zielona plakietka 🚗 i od tej pory 🔎 szuka pod to auto.", "err");
+    toast("🚗 Najpierw zapamiętaj pojazd — instrukcja nad tabelą części");
     setTimeout(() => { window.open("https://intercars.pl/partsfinder", "_blank"); }, 500);
     return;
   }
@@ -1153,7 +1155,8 @@ function captureIcType(url) {
   currentIcTypeLabel = icTypeLabelFromToken(m[1]);
   renderIcVeh();
   scheduleDraft();
-  toast("🚗 Zapamiętano pojazd sklepowy: " + currentIcTypeLabel + " — od teraz „🔍” szuka pod to auto");
+  setStatus("✅ Pojazd sklepowy zapamiętany: " + currentIcTypeLabel + ". Wpisuj nazwy części i używaj „🔎 Szukaj dla tego auta”.", "ok");
+  toast("🚗 Zapamiętano pojazd: " + currentIcTypeLabel);
   return true;
 }
 async function icQuoteFromLink(row, sku) {
@@ -2446,7 +2449,11 @@ $("partsList").addEventListener("click", ev => {
       if (!t) { toast("Schowek jest pusty — najpierw skopiuj numer, nazwę lub link produktu w katalogu Inter Cars"); return; }
       const mUrl = t.match(/intercars\.pl\/produkty\/([a-z0-9]+)/i);
       if (mUrl) { icQuoteFromLink(row, mUrl[1].toUpperCase()); return; }
-      if (/intercars\.pl/i.test(t) && captureIcType(t)) return;
+      if (/intercars\.pl/i.test(t)) {
+        if (captureIcType(t)) return;
+        toast("✖ Ten adres nie zawiera pojazdu (brak „type=”). Skopiuj adres z PASKA ADRESU przeglądarki po wybraniu auta — nie przez „Udostępnij”.");
+        return;
+      }
       if (t.length > 120 || /\n/.test(t)) { toast("W schowku jest za długa treść — skopiuj sam numer lub nazwę części"); return; }
       /* krótki ciąg z cyframi i bez zwykłego zdania = numer katalogowy; inaczej = nazwa */
       const wygladaNaNumer = t.length <= 25 && /\d/.test(t) && t.split(" ").length <= 3;
