@@ -66,7 +66,7 @@ input[type=text],input[type=date],input[type=time],input[type=number],select,tex
   width:100%;border:1px solid var(--border);border-radius:7px;padding:9px 10px;font-size:15px;font-family:inherit;background:#fff}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);border-color:var(--orange)}
 input.scanned{background:#fff7ec;border-color:var(--orange)}
-body.role-prac #quoteAllBtn,body.role-prac #zamBtn,body.role-prac .ic-result,body.role-prac #zamHist,body.role-prac .abtn.del[data-act="del"]{display:none!important}
+body.role-prac .abtn.del[data-act="del"],body.role-prac #secKeys{display:none!important}
 .miss{border-color:#d32f2f!important;background:#ffebee!important}
 .missmark{display:block;color:#d32f2f;font-weight:bold;font-size:13px;margin-top:3px}
 .todo{background:#e8f5e9 !important;border-color:#2e7d32 !important}
@@ -193,7 +193,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia <span>ASKO</span></h1>
-    <small><b style="color:var(--orange)">wersja 64</b></small>
+    <small><b style="color:var(--orange)">wersja 67</b></small>
   </div>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto;flex:0 0 auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
@@ -429,24 +429,6 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <button class="btn btn-grey" id="newBtn2">🆕 Nowe zlecenie</button>
 </div>
 
-<div class="card">
-  <h2><span class="num">10</span> ZAPISANE ZLECENIA</h2>
-  <div class="body">
-    <div id="statusChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
-    <div id="storWarn">⚠ Pamięć przeglądarki jest niedostępna (tryb prywatny lub podgląd) — zlecenia będą pamiętane tylko do zamknięcia strony. Otwórz aplikację w Safari w zwykłym oknie.</div>
-    <div class="grid g2">
-      <div><input type="text" id="archSearch" placeholder="Szukaj: nr, klient, rejestracja, VIN…"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button type="button" class="btn btn-grey" id="expBtn" style="flex:1">⬇ Kopia (JSON)</button>
-        <button type="button" class="btn btn-grey" id="csvBtn" style="flex:1">📊 CSV (Excel)</button>
-        <label class="btn btn-grey" style="display:inline-flex;align-items:center;justify-content:center;flex:1">⬆ Import<input type="file" id="impInput" accept=".json,application/json" style="display:none"></label>
-      </div>
-    </div>
-    <div class="arch-list" id="archList"></div>
-    <div class="hint">Zlecenia zapisują się automatycznie przy drukowaniu oraz przyciskiem „Zapisz”. Dane są przechowywane w pamięci Safari na tym urządzeniu — rób regularnie „Eksport kopii”, bo wyczyszczenie danych Safari usuwa archiwum.</div>
-  </div>
-</div>
-
 <div class="footer-actions">
   <button class="btn btn-orange" style="font-size:17px;padding:14px 30px" id="saveBtn">💾 Zapisz zlecenie</button>
   <button class="btn btn-dark" style="font-size:17px;padding:14px 30px" onclick="doPrint()">🖨 Drukuj (2 strony)</button>
@@ -515,7 +497,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       </div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="usrAdmin"> pełne uprawnienia (ceny zakupu, zamówienia IC, usuwanie, użytkownicy)</label>
       <button type="button" class="btn btn-orange" id="usrAdd" style="width:100%;margin-top:10px">＋ Dodaj</button>
-      <div class="hint" style="margin-top:10px">Pracownik bez pełnych uprawnień: przyjmuje zlecenia, dodaje części i drukuje — nie widzi cen zakupu Inter Cars, nie zamawia i nie usuwa. Lista użytkowników jest zapisana tylko na tym urządzeniu.</div>
+      <div class="hint" style="margin-top:10px">Pracownik bez pełnych uprawnień może wszystko poza: usuwaniem zleceń i zarządzaniem użytkownikami. Lista użytkowników jest zapisana tylko na tym urządzeniu.</div>
     </div>
   </div>
 </div>
@@ -540,6 +522,14 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       </div>
       <button type="button" class="btn btn-grey" id="cloudLogout" style="display:none;width:100%">Wyloguj to urządzenie</button>
       <div class="hint" style="margin-top:10px">Po zalogowaniu tym samym kontem na maks. 3 urządzeniach zlecenia (wraz z filmami) są wspólne i aktualizują się na bieżąco. Bez logowania aplikacja działa jak dotąd — lokalnie.</div>
+      <div id="secKeys" style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+        <b>🔐 Klucz Inter Cars (tylko to urządzenie)</b>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="password" id="icKeyInp" placeholder="wklej APP_KEY z Cloudflare" style="flex:1">
+          <button type="button" class="abtn" id="icKeySave" style="background:#e8f5e9;color:#2e7d32">💾 Zapisz</button>
+        </div>
+        <div class="hint" id="icKeyStan" style="margin-top:6px"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -549,7 +539,22 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       <b>📋 Zapisane zlecenia</b>
       <button type="button" id="archModalClose" style="border:none;background:none;color:#fff;font-size:24px;cursor:pointer;padding:0 4px">✕</button>
     </div>
-    <div id="archModalList" style="overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px"></div>
+    <div style="overflow-y:auto;padding:10px 12px;max-height:78vh">
+
+    <div id="statusChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+    <div id="storWarn">⚠ Pamięć przeglądarki jest niedostępna (tryb prywatny lub podgląd) — zlecenia będą pamiętane tylko do zamknięcia strony. Otwórz aplikację w Safari w zwykłym oknie.</div>
+    <div class="grid g2">
+      <div><input type="text" id="archSearch" placeholder="Szukaj: nr, klient, rejestracja, VIN…"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-grey" id="expBtn" style="flex:1">⬇ Kopia (JSON)</button>
+        <button type="button" class="btn btn-grey" id="csvBtn" style="flex:1">📊 CSV (Excel)</button>
+        <label class="btn btn-grey" style="display:inline-flex;align-items:center;justify-content:center;flex:1">⬆ Import<input type="file" id="impInput" accept=".json,application/json" style="display:none"></label>
+      </div>
+    </div>
+    <div class="arch-list" id="archList"></div>
+    <div class="hint">Zlecenia zapisują się automatycznie przy drukowaniu oraz przyciskiem „Zapisz”. Dane są przechowywane w pamięci Safari na tym urządzeniu — rób regularnie „Eksport kopii”, bo wyczyszczenie danych Safari usuwa archiwum.</div>
+    </div>
+    <div id="archModalList" style="display:none"></div>
   </div>
 </div>
 <div id="toast"></div>
@@ -1123,9 +1128,21 @@ $("zamHist").addEventListener("click", async ev => {
   if (!confirm("Anulować w Inter Cars zamówienie nr " + z.id + "?")) return;
   try {
     const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + "/ic/sales/requisition/" + encodeURIComponent(z.id) + "/cancel", {
-      method: "POST", headers: { "x-asko-key": window.ASKO_IC.appKey, "content-type": "application/json" }, body: "{}"
+      method: "POST", headers: { "x-asko-key": icKey(), "content-type": "application/json" }, body: "{}"
     });
-    if (r.ok) { z.anulowane = true; renderZamHist(); scheduleDraft(); toast("✖ Zamówienie " + z.id + " anulowane"); }
+    if (r.ok) {
+      z.anulowane = true; renderZamHist(); scheduleDraft();
+      if (currentId) {
+        const l = loadAll(), rr = l.find(x => x.id === currentId);
+        if (rr) {
+          histAdd(rr, "anulował(a) zamówienie IC nr " + z.id);
+          rr.data.ic_zam = currentIcZam.slice();
+          rr.updatedAt = new Date().toISOString();
+          saveAll(l); cloudPush(rr); renderArch();
+        }
+      }
+      toast("✖ Zamówienie " + z.id + " anulowane");
+    }
     else toast("Nie udało się anulować (" + r.status + ") — skontaktuj się z filią OLK");
   } catch (e) { toast("Błąd połączenia przy anulowaniu"); }
 });
@@ -1148,7 +1165,7 @@ $("zamBtn").addEventListener("click", async () => {
   try {
     const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + "/ic/inventory/quote", {
       method: "POST",
-      headers: { "x-asko-key": window.ASKO_IC.appKey, "content-type": "application/json", "Accept": "application/json" },
+      headers: { "x-asko-key": icKey(), "content-type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ lines: rows.map(x => ({ index: x.idx, quantity: x.qty })) })
     });
     const j = JSON.parse(await r.text());
@@ -1187,7 +1204,7 @@ $("zamGo").addEventListener("click", async () => {
     if (kom) body.comments = kom;
     const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + "/ic/sales/requisition", {
       method: "POST",
-      headers: { "x-asko-key": window.ASKO_IC.appKey, "content-type": "application/json", "Accept": "application/json" },
+      headers: { "x-asko-key": icKey(), "content-type": "application/json", "Accept": "application/json" },
       body: JSON.stringify(body)
     });
     const txt = await r.text();
@@ -1203,6 +1220,15 @@ $("zamGo").addEventListener("click", async () => {
     currentIcZam.push({ id: id, ts: new Date().toLocaleString("pl-PL").slice(0, 17), poz: rows.length });
     renderZamHist();
     scheduleDraft();
+    if (currentId) {
+      const l = loadAll(), rr = l.find(x => x.id === currentId);
+      if (rr) {
+        histAdd(rr, "zamówił(a) w IC: " + rows.length + " poz." + (id ? " (nr " + id + ")" : ""));
+        rr.data.ic_zam = currentIcZam.slice();
+        rr.updatedAt = new Date().toISOString();
+        saveAll(l); cloudPush(rr); renderArch();
+      }
+    }
     $("zamOut").textContent = "✅ Zamówienie przyjęte przez Inter Cars" + (id ? " — numer zapotrzebowania: " + id : "") +
       ".\nSzczegóły i status znajdziesz w IC Katalogu / u opiekuna filii OLK. Zapisz zlecenie, aby historia zamówień została w archiwum.";
     toast("🛒 Zamówiono w IC (" + rows.length + " poz.)");
@@ -1224,7 +1250,7 @@ async function icQuoteAll() {
   try {
     const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + "/ic/inventory/quote", {
       method: "POST",
-      headers: { "x-asko-key": window.ASKO_IC.appKey, "content-type": "application/json", "Accept": "application/json" },
+      headers: { "x-asko-key": icKey(), "content-type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ lines: rows.map(x => ({ index: x.idx, quantity: x.qty })) })
     });
     const txt = await r.text();
@@ -1252,8 +1278,17 @@ $("quoteAllBtn").addEventListener("click", icQuoteAll);
 
 
 /* ---------- Inter Cars API (przez bezpieczny Worker) ---------- */
+function icKey() {
+  try {
+    const k = localStorage.getItem("asko_ic_key");
+    if (k) return k;
+  } catch (e) {}
+  /* zgodność wstecz: stary klucz z pliku, dopóki nie zostanie zastąpiony kluczem urządzenia */
+  const f = (window.ASKO_IC || {}).appKey || "";
+  return f.indexOf("TU_WKLEJ") === 0 ? "" : f;
+}
 function icConfigured() {
-  return !!(window.ASKO_IC && window.ASKO_IC.workerUrl && window.ASKO_IC.workerUrl.indexOf("http") === 0 && window.ASKO_IC.appKey && window.ASKO_IC.appKey.indexOf("TU_WKLEJ") !== 0);
+  return !!(window.ASKO_IC && window.ASKO_IC.workerUrl && window.ASKO_IC.workerUrl.indexOf("http") === 0 && icKey());
 }
 function renderIcResult(row, it, idx) {
   const box = row.querySelector(".ic-result");
@@ -1288,7 +1323,7 @@ async function szukajDlaAuta(row) {
     toast("🚗 Ustalam pojazd w Inter Cars po VIN…");
     try {
       const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + "/shop/vin/" + encodeURIComponent(vin), {
-        headers: { "x-asko-key": window.ASKO_IC.appKey }
+        headers: { "x-asko-key": icKey() }
       });
       const j = await r.json();
       if (j && j.type) {
@@ -1377,7 +1412,7 @@ async function icQuoteFromLink(row, sku) {
   try {
     const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + "/ic/inventory/quote", {
       method: "POST",
-      headers: { "x-asko-key": window.ASKO_IC.appKey, "content-type": "application/json", "Accept": "application/json" },
+      headers: { "x-asko-key": icKey(), "content-type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ lines: [{ sku: sku, quantity: qty }] })
     });
     const txt = await r.text();
@@ -1985,13 +2020,14 @@ async function startCloudSync() {
     snap.forEach(dc => { cloudMap[dc.id] = dc.data(); });
     for (const r of loadAll()) {
       const c = cloudMap[r.id];
+      if (c && c.deleted) continue; /* usunięte na innym telefonie — nie wskrzeszamy */
       if (!c || (r.updatedAt || "") > (c.updatedAt || "")) await col.doc(r.id).set(r);
     }
   } catch (e) { toast("☁ Problem z pierwszą synchronizacją: " + (e.code || e.message)); }
   /* nasłuch w czasie rzeczywistym: chmura -> to urządzenie */
   CLOUD.unsub = col.onSnapshot(snap => {
     const list = [];
-    snap.forEach(dc => list.push(dc.data()));
+    snap.forEach(dc => { const r = dc.data(); if (!r.deleted) list.push(r); });
     saveAll(list);
     renderArch();
     openFromHash();
@@ -2042,13 +2078,28 @@ $("lockGo").addEventListener("click", () => {
   toast("👤 Witaj, " + u.i + (u.r === "admin" ? " (pełne uprawnienia)" : ""));
 });
 $("lockPin").addEventListener("keydown", e => { if (e.key === "Enter") $("lockGo").click(); });
+let usrEditIdx = null;
 function usrRender() {
   const u = usrAll();
   $("usrList").innerHTML = u.map((x, i) =>
     "👤 <b>" + escHtml(x.i) + "</b> — " + (x.r === "admin" ? "pełne uprawnienia" : "pracownik") +
+    ' <button type="button" class="abtn" data-usredit="' + i + '">✏ Edytuj / PIN</button>' +
     (u.length > 1 ? ' <button type="button" class="abtn del" data-usrdel="' + i + '">✖</button>' : "")).join("<br>");
+  usrEditIdx = null;
+  $("usrAdd").textContent = "＋ Dodaj";
+  $("usrImie").value = ""; $("usrPin").value = ""; $("usrAdmin").checked = false;
 }
 $("usrList").addEventListener("click", ev => {
+  const be = ev.target.closest("button[data-usredit]");
+  if (be) {
+    const u = usrAll()[+be.dataset.usredit];
+    usrEditIdx = +be.dataset.usredit;
+    $("usrImie").value = u.i;
+    $("usrPin").value = u.p;
+    $("usrAdmin").checked = u.r === "admin";
+    $("usrAdd").textContent = "💾 Zapisz zmiany (" + u.i + ")";
+    return;
+  }
   const b = ev.target.closest("button[data-usrdel]");
   if (!b) return;
   const u = usrAll();
@@ -2061,9 +2112,15 @@ $("usrAdd").addEventListener("click", () => {
   const pin = ($("usrPin").value || "").trim();
   if (!imie || !/^\d{4,6}$/.test(pin)) { toast("Podaj imię i PIN złożony z 4-6 cyfr"); return; }
   const u = usrAll();
+  if (usrEditIdx !== null && u[usrEditIdx]) {
+    const stary = u[usrEditIdx].i;
+    u[usrEditIdx] = { i: imie, p: pin, r: $("usrAdmin").checked ? "admin" : "prac" };
+    usrSave(u); usrRender();
+    toast("💾 Zapisano zmiany: " + stary + (stary !== imie ? " → " + imie : ""));
+    return;
+  }
   u.push({ i: imie, p: pin, r: $("usrAdmin").checked ? "admin" : "prac" });
   usrSave(u); usrRender();
-  $("usrImie").value = ""; $("usrPin").value = ""; $("usrAdmin").checked = false;
   toast("👤 Dodano: " + imie);
 });
 $("usrClose").addEventListener("click", () => { $("usrModal").style.display = "none"; });
@@ -2123,9 +2180,24 @@ function cloudPush(rec) {
   CLOUD.db.collection("zlecenia").doc(rec.id).set(rec)
     .catch(e => toast("☁ Nie wysłano do chmury: " + (e.code || e.message)));
 }
+function ktoTeraz() { const s = usrCurrent(); return s ? s.i : "?"; }
+function histAdd(rec, akcja) {
+  rec.hist = (rec.hist || []).slice(-49);
+  rec.hist.push({ t: new Date().toISOString(), u: ktoTeraz(), a: akcja });
+}
+function histFmt(h) {
+  const d = new Date(h.t);
+  const pp = n => String(n).padStart(2, "0");
+  return pp(d.getDate()) + "." + pp(d.getMonth() + 1) + " " + pp(d.getHours()) + ":" + pp(d.getMinutes()) + " — " + (h.u || "?") + ": " + h.a;
+}
 function cloudDelete(id) {
+  /* nagrobek zamiast twardego kasowania — dzięki temu usunięcie dociera na wszystkie telefony
+     i nie zmartwychwstaje przy pierwszej synchronizacji starego urządzenia */
   if (!CLOUD.on || !id) return;
-  CLOUD.db.collection("zlecenia").doc(id).delete().catch(() => {});
+  CLOUD.db.collection("zlecenia").doc(id).set({
+    id: id, deleted: true, updatedAt: new Date().toISOString(),
+    delBy: ktoTeraz(), delAt: new Date().toISOString(),
+  }).catch(() => {});
 }
 function updateCloudUi() {
   const dot = $("cloudDot");
@@ -2140,11 +2212,26 @@ function updateCloudUi() {
     s.textContent = "Skonfigurowano, ale to urządzenie nie jest zalogowane. Zaloguj się wspólnym kontem warsztatu.";
   }
   $("cloudLoginBox").style.display = (cloudConfigured() && !CLOUD.on) ? "block" : "none";
+  try { icKeyStanRender(); } catch (e) {}
   $("cloudLogout").style.display = CLOUD.on ? "block" : "none";
 }
 $("cloudBtn").addEventListener("click", () => { updateCloudUi(); $("cloudModal").style.display = "block"; });
 $("cloudModalClose").addEventListener("click", () => $("cloudModal").style.display = "none");
 $("cloudModal").addEventListener("click", ev => { if (ev.target.id === "cloudModal") $("cloudModal").style.display = "none"; });
+function icKeyStanRender() {
+  let ma = false;
+  try { ma = !!localStorage.getItem("asko_ic_key"); } catch (e) {}
+  $("icKeyStan").textContent = ma ? "✅ Klucz zapisany na tym urządzeniu — połączenie z IC aktywne."
+    : (icKey() ? "⚠️ Działa stary klucz z pliku publicznego — wklej nowy klucz po rotacji w Cloudflare." : "✖ Brak klucza — funkcje Inter Cars nieaktywne.");
+}
+$("icKeySave").addEventListener("click", () => {
+  const k = ($("icKeyInp").value || "").trim();
+  if (k.length < 12) { toast("Klucz wygląda na za krótki — wklej pełny APP_KEY"); return; }
+  try { localStorage.setItem("asko_ic_key", k); } catch (e) {}
+  $("icKeyInp").value = "";
+  icKeyStanRender();
+  toast("🔐 Klucz zapisany na tym urządzeniu");
+});
 $("cloudLogin").addEventListener("click", () => {
   const em = $("cloudEmail").value.trim(), pw = $("cloudPass").value;
   if (!em || !pw) { toast("Podaj e-mail i hasło konta warsztatu"); return; }
@@ -2281,10 +2368,11 @@ function saveOrder(silent) {
   const list = loadAll();
   const now = new Date().toISOString();
   let rec = currentId ? list.find(r => r.id === currentId) : null;
-  if (rec) { rec.data = d; rec.updatedAt = now; }
+  if (rec) { rec.data = d; rec.updatedAt = now; histAdd(rec, "zapisał(a) zmiany"); }
   else {
     rec = { id: "z" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
             createdAt: now, updatedAt: now, data: d };
+    histAdd(rec, "założył(a) zlecenie");
     list.push(rec);
     currentId = rec.id;
   }
@@ -2515,7 +2603,13 @@ function renderArch() {
       '<button type="button" class="abtn" data-act="copy">Kopiuj jako nowe</button>' +
       '<button type="button" class="abtn" data-act="share">Udostępnij</button>' +
       '<button type="button" class="abtn del" data-act="del">Usuń</button>' +
-      "</div></div>";
+      "</div>" +
+      ((r.hist && r.hist.length) ?
+        '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px;color:var(--grey)">🕓 ' +
+        escHtml(histFmt(r.hist[r.hist.length - 1])) + " · historia (" + r.hist.length + ")</summary>" +
+        '<div style="font-size:12.5px;color:var(--grey);line-height:1.7;margin-top:4px">' +
+        r.hist.slice().reverse().map(h => escHtml(histFmt(h))).join("<br>") + "</div></details>" : "") +
+      "</div>";
   }).join("");
 }
 $("archSearch").addEventListener("input", renderArch);
