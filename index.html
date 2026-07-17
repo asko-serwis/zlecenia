@@ -66,6 +66,7 @@ input[type=text],input[type=date],input[type=time],input[type=number],select,tex
   width:100%;border:1px solid var(--border);border-radius:7px;padding:9px 10px;font-size:15px;font-family:inherit;background:#fff}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);border-color:var(--orange)}
 input.scanned{background:#fff7ec;border-color:var(--orange)}
+body.role-prac #quoteAllBtn,body.role-prac #zamBtn,body.role-prac .ic-result,body.role-prac #zamHist,body.role-prac .abtn.del[data-act="del"]{display:none!important}
 .miss{border-color:#d32f2f!important;background:#ffebee!important}
 .missmark{display:block;color:#d32f2f;font-weight:bold;font-size:13px;margin-top:3px}
 .todo{background:#e8f5e9 !important;border-color:#2e7d32 !important}
@@ -192,7 +193,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia <span>ASKO</span></h1>
-    <small><b style="color:var(--orange)">wersja 63</b></small>
+    <small><b style="color:var(--orange)">wersja 64</b></small>
   </div>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto;flex:0 0 auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
@@ -319,7 +320,14 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     </div>
     <textarea id="f_usterki" rows="6" placeholder="Objawy zgłaszane przez klienta oraz zlecony zakres prac — wpisz lub podyktuj"></textarea>
     <div class="grid g2" style="margin-top:10px">
-      <div><label class="f">Przewidywany termin wykonania</label><input type="text" id="f_termin"></div>
+      <div><label class="f">Przewidywany termin wykonania</label>
+        <div style="display:flex;gap:6px;align-items:stretch">
+          <input type="text" id="f_termin" style="flex:1">
+          <label style="position:relative;display:flex;align-items:center;justify-content:center;width:52px;border:1.5px solid var(--border);border-radius:10px;background:#fff;font-size:22px;cursor:pointer">📅
+            <input type="date" id="f_termin_kal" style="position:absolute;inset:0;opacity:0;width:100%;height:100%">
+          </label>
+        </div>
+      </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
           <label class="f" style="margin:0">Cena usługi / robocizna (zł)</label>
@@ -480,6 +488,37 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     </div>
   </div>
 </div>
+<div id="lockModal" style="display:none;position:fixed;inset:0;background:var(--dark);z-index:200;overflow:auto">
+  <div style="max-width:380px;margin:12vh auto 0;padding:0 16px;text-align:center">
+    <img id="lockLogo" src="" alt="ASKO" style="height:72px;background:#fff;border-radius:16px;padding:8px">
+    <h2 style="color:#fff;margin:18px 0 4px">Asystent zlecenia ASKO</h2>
+    <div style="color:#bbb;font-size:14px;margin-bottom:18px">Wybierz użytkownika i podaj PIN</div>
+    <select id="lockUser" style="width:100%;font-size:17px;padding:12px;border-radius:10px;border:none;margin-bottom:10px"></select>
+    <input type="password" id="lockPin" inputmode="numeric" placeholder="PIN" style="width:100%;font-size:22px;letter-spacing:8px;text-align:center;padding:12px;border-radius:10px;border:none;box-sizing:border-box">
+    <button type="button" id="lockGo" class="btn btn-orange" style="width:100%;margin-top:12px;font-size:18px">Wejdź</button>
+    <div id="lockErr" style="color:#ff8a80;margin-top:10px;min-height:20px;font-weight:bold"></div>
+  </div>
+</div>
+<div id="usrModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;overflow:auto">
+  <div style="background:#fff;max-width:480px;margin:6vh auto 0;border-radius:12px;overflow:hidden;width:calc(100% - 24px)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dark);color:#fff">
+      <b>👤 Użytkownicy i uprawnienia</b>
+      <button type="button" id="usrClose" style="border:none;background:none;color:#fff;font-size:24px;cursor:pointer;padding:0 4px">✕</button>
+    </div>
+    <div style="padding:14px 16px">
+      <div id="usrList" style="font-size:15px;line-height:2"></div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
+      <b>Dodaj użytkownika</b>
+      <div class="grid g2" style="margin-top:8px">
+        <div><label class="f">Imię</label><input type="text" id="usrImie"></div>
+        <div><label class="f">PIN (4-6 cyfr)</label><input type="text" inputmode="numeric" id="usrPin"></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="usrAdmin"> pełne uprawnienia (ceny zakupu, zamówienia IC, usuwanie, użytkownicy)</label>
+      <button type="button" class="btn btn-orange" id="usrAdd" style="width:100%;margin-top:10px">＋ Dodaj</button>
+      <div class="hint" style="margin-top:10px">Pracownik bez pełnych uprawnień: przyjmuje zlecenia, dodaje części i drukuje — nie widzi cen zakupu Inter Cars, nie zamawia i nie usuwa. Lista użytkowników jest zapisana tylko na tym urządzeniu.</div>
+    </div>
+  </div>
+</div>
 <div id="cloudModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60">
   <div style="background:#fff;max-width:480px;margin:8vh auto 0;border-radius:12px;overflow:hidden;width:calc(100% - 24px);box-shadow:0 10px 40px rgba(0,0,0,.3)">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dark);color:#fff">
@@ -487,6 +526,10 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       <button type="button" id="cloudModalClose" style="border:none;background:none;color:#fff;font-size:24px;cursor:pointer;padding:0 4px">✕</button>
     </div>
     <div style="padding:14px 16px">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button type="button" class="abtn" id="usrOpen" style="flex:1;background:#ede7f6;color:#4527a0">👤 Użytkownicy</button>
+        <button type="button" class="abtn" id="usrLogout" style="flex:1">🔒 Zmień użytkownika</button>
+      </div>
       <div id="cloudStatus" class="hint" style="margin:0 0 10px"></div>
       <div id="cloudLoginBox" style="display:none">
         <label class="f">E-mail konta warsztatu</label>
@@ -577,7 +620,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 
   <table class="p-fields" style="margin-top:7px">
     <tr>
-      <td style="width:50%;background:#f5f5f5"><span class="lbl">Szacunkowy koszt naprawy (brutto)</span><span class="val" id="p_koszt"></span></td>
+      <td style="width:50%;background:#f5f5f5"><span class="lbl" id="p_koszt_lbl">Przewidywany koszt naprawy (brutto)</span><span class="val" id="p_koszt"></span></td>
       <td style="width:50%;background:#f5f5f5"><span class="lbl">Przewidywany termin wykonania</span><span class="val" id="p_termin"></span></td>
     </tr>
   </table>
@@ -614,7 +657,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <div class="keep">
   <div class="p-sec"><span class="n">6</span><span class="t">CZĘŚCI I MATERIAŁY UŻYTE DO NAPRAWY</span></div>
   <table class="p-parts">
-    <thead><tr><th style="width:6%">LP.</th><th style="width:42%">NAZWA CZĘŚCI / MATERIAŁU</th><th style="width:10%">ILOŚĆ</th><th style="width:24%">NR KATALOGOWY / UWAGI</th><th style="width:18%">CENA (zł)</th></tr></thead>
+    <thead><tr><th style="width:6%">LP.</th><th style="width:42%">NAZWA CZĘŚCI / MATERIAŁU</th><th style="width:10%">ILOŚĆ</th><th style="width:24%">NR KATALOGOWY / UWAGI</th><th style="width:18%" id="p_cena_th">CENA BRUTTO (zł)</th></tr></thead>
     <tbody id="p_parts_body"></tbody>
   </table>
   </div>
@@ -1441,8 +1484,11 @@ function printDoc() {
     $("f_pojemnosc").value ? $("f_pojemnosc").value + " cm³" : "",
     $("f_moc").value ? $("f_moc").value + " kW" : ""
   ].filter(Boolean).join(" / ");
+  const toNetto = (($("f_nip").value || "").trim() !== "");
+  $("p_koszt_lbl").textContent = "Przewidywany koszt naprawy (" + (toNetto ? "netto" : "brutto") + ")";
+  $("p_cena_th").textContent = "CENA " + (toNetto ? "NETTO" : "BRUTTO") + " (zł)";
   $("p_koszt").textContent = $("f_koszt").value
-    ? $("f_koszt").value.replace(/zł\s*$/i, "").trim() + " zł" + (($("f_nip").value || "").trim() ? " netto" : "")
+    ? $("f_koszt").value.replace(/zł\s*$/i, "").trim() + " zł"
     : "";
   const tyt = document.querySelector("input[name=tytul]:checked");
   $("p_tytul").textContent = ["właścicielem pojazdu","współwłaścicielem pojazdu","osobą upoważnioną przez właściciela"]
@@ -1958,6 +2004,81 @@ $("reloadBtn").addEventListener("click", () => {
     location.replace(location.pathname + "?r=" + Date.now());
   }, 250);
 });
+/* ==================== UŻYTKOWNICY / PIN / ROLE ==================== */
+const USR_KEY = "asko_users", USR_SES = "asko_login";
+function usrAll() {
+  try { const u = JSON.parse(localStorage.getItem(USR_KEY) || "null"); if (u && u.length) return u; } catch (e) {}
+  return [{ i: "Szef", p: "2580", r: "admin" }];
+}
+function usrSave(u) { try { localStorage.setItem(USR_KEY, JSON.stringify(u)); } catch (e) {} }
+function usrCurrent() {
+  try {
+    const s = JSON.parse(localStorage.getItem(USR_SES) || "null");
+    if (s && s.exp > Date.now()) return s;
+  } catch (e) {}
+  return null;
+}
+function applyRole() {
+  const s = usrCurrent();
+  document.body.classList.toggle("role-prac", !(s && s.r === "admin"));
+}
+function lockShow() {
+  const u = usrAll();
+  $("lockUser").innerHTML = u.map((x, i) => '<option value="' + i + '">' + escHtml(x.i) + "</option>").join("");
+  try { $("lockLogo").src = $("logoImg").src; } catch (e) {}
+  $("lockPin").value = ""; $("lockErr").textContent = "";
+  $("lockModal").style.display = "block";
+}
+$("lockGo").addEventListener("click", () => {
+  const u = usrAll()[+$("lockUser").value];
+  if (!u || $("lockPin").value !== u.p) {
+    $("lockErr").textContent = "✖ Nieprawidłowy PIN";
+    $("lockPin").value = ""; $("lockPin").focus();
+    return;
+  }
+  try { localStorage.setItem(USR_SES, JSON.stringify({ i: u.i, r: u.r, exp: Date.now() + 12 * 3600 * 1000 })); } catch (e) {}
+  $("lockModal").style.display = "none";
+  applyRole();
+  toast("👤 Witaj, " + u.i + (u.r === "admin" ? " (pełne uprawnienia)" : ""));
+});
+$("lockPin").addEventListener("keydown", e => { if (e.key === "Enter") $("lockGo").click(); });
+function usrRender() {
+  const u = usrAll();
+  $("usrList").innerHTML = u.map((x, i) =>
+    "👤 <b>" + escHtml(x.i) + "</b> — " + (x.r === "admin" ? "pełne uprawnienia" : "pracownik") +
+    (u.length > 1 ? ' <button type="button" class="abtn del" data-usrdel="' + i + '">✖</button>' : "")).join("<br>");
+}
+$("usrList").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-usrdel]");
+  if (!b) return;
+  const u = usrAll();
+  if (!confirm("Usunąć użytkownika " + u[+b.dataset.usrdel].i + "?")) return;
+  u.splice(+b.dataset.usrdel, 1);
+  usrSave(u); usrRender();
+});
+$("usrAdd").addEventListener("click", () => {
+  const imie = ($("usrImie").value || "").trim();
+  const pin = ($("usrPin").value || "").trim();
+  if (!imie || !/^\d{4,6}$/.test(pin)) { toast("Podaj imię i PIN złożony z 4-6 cyfr"); return; }
+  const u = usrAll();
+  u.push({ i: imie, p: pin, r: $("usrAdmin").checked ? "admin" : "prac" });
+  usrSave(u); usrRender();
+  $("usrImie").value = ""; $("usrPin").value = ""; $("usrAdmin").checked = false;
+  toast("👤 Dodano: " + imie);
+});
+$("usrClose").addEventListener("click", () => { $("usrModal").style.display = "none"; });
+$("usrOpen").addEventListener("click", () => {
+  const s = usrCurrent();
+  if (!(s && s.r === "admin")) { toast("Tylko użytkownik z pełnymi uprawnieniami może zarządzać kontami"); return; }
+  usrRender();
+  $("usrModal").style.display = "block";
+});
+$("usrLogout").addEventListener("click", () => {
+  try { localStorage.removeItem(USR_SES); } catch (e) {}
+  $("cloudModal").style.display = "none";
+  applyRole();
+  lockShow();
+});
 function doPrint() {
   if (navigator.standalone === true) {
     /* iOS blokuje okno drukowania w aplikacjach z ekranu początkowego —
@@ -2262,6 +2383,14 @@ function normalizeKoszt() {
   if (out !== v) { $("f_uslugi").value = out; scheduleDraft(); }
   przeliczKoszt();
 }
+$("f_termin_kal").addEventListener("change", () => {
+  const v = $("f_termin_kal").value; /* RRRR-MM-DD */
+  if (!v) return;
+  const [r, m, d] = v.split("-");
+  $("f_termin").value = d + "." + m + "." + r;
+  scheduleDraft();
+  updateTodo();
+});
 $("f_uslugi").addEventListener("blur", normalizeKoszt);
 $("f_uslugi").addEventListener("change", normalizeKoszt);
 $("saveBtn").addEventListener("click", () => saveOrder(false));
@@ -2739,6 +2868,8 @@ function shareOrder(rec) {
   cloudInit();
   document.querySelectorAll(".car-outline").forEach(g => { g.innerHTML = CAR_OUTLINE; });
   renderDmg();
+  applyRole();
+  if (!usrCurrent()) lockShow();
   if (/[?&]r=\d+/.test(location.search)) {
     try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
   }
