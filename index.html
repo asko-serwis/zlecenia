@@ -193,7 +193,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia <span>ASKO</span></h1>
-    <small><b style="color:var(--orange)">wersja 67</b></small>
+    <small><b style="color:var(--orange)">wersja 69</b></small>
   </div>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto;flex:0 0 auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
@@ -423,12 +423,6 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   </div>
 </div>
 
-<div class="footer-actions" style="margin-bottom:2px">
-  <button class="btn btn-orange" style="font-size:17px;padding:14px 30px" id="saveBtn2">💾 Zapisz zlecenie</button>
-  <button class="btn btn-dark" style="font-size:17px;padding:14px 30px" onclick="doPrint()">🖨 Drukuj (2 strony)</button>
-  <button class="btn btn-grey" id="newBtn2">🆕 Nowe zlecenie</button>
-</div>
-
 <div class="footer-actions">
   <button class="btn btn-orange" style="font-size:17px;padding:14px 30px" id="saveBtn">💾 Zapisz zlecenie</button>
   <button class="btn btn-dark" style="font-size:17px;padding:14px 30px" onclick="doPrint()">🖨 Drukuj (2 strony)</button>
@@ -635,8 +629,8 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <div class="p-banner">WYDANIE POJAZDU WYŁĄCZNIE PO PEŁNEJ ZAPŁACIE — GOTÓWKĄ LUB PRZELEWEM (PO ZAKSIĘGOWANIU).</div>
   <div class="p-accept">Oświadczam, że zapoznałem/-am się z „Warunkami wykonania naprawy” (sekcja 5), stanowiącymi integralną część niniejszego zlecenia, i akceptuję je w całości.</div>
   <div class="p-signs">
-    <div class="s"><div class="line" style="position:relative"><img id="p_podpis" src="" alt="" style="display:none;position:absolute;bottom:-2pt;left:50%;transform:translateX(-50%);height:44pt;max-width:95%"></div><div class="cap">data i podpis Zleceniodawcy</div></div>
-    <div class="s"><div class="line"></div><div class="cap">data i podpis przyjmującego zlecenie</div></div>
+    <div class="s"><div class="line" style="position:relative"><span id="p_sig_data" style="position:absolute;left:0;bottom:2pt;font-size:8pt;color:#1f1f1f"></span><img id="p_podpis" src="" alt="" style="display:none;position:absolute;bottom:-2pt;left:50%;transform:translateX(-50%);height:44pt;max-width:75%"></div><div class="cap">data i podpis Zleceniodawcy</div></div>
+    <div class="s"><div class="line" style="position:relative"><span id="p_przyj" style="position:absolute;left:0;bottom:2pt;font-size:8pt;color:#1f1f1f"></span></div><div class="cap">data i podpis przyjmującego zlecenie</div></div>
   </div>
   </div>
   <div class="p-footer">ASKO Krzysztof Skowron &nbsp;·&nbsp; ul. Galicyjska 2b, 32-300 Niesułowice &nbsp;·&nbsp; NIP 6371525533</div>
@@ -1568,8 +1562,8 @@ function printDoc() {
     $("p_dmgMarks").innerHTML = currentDmg.map((m, i) =>
       '<circle cx="' + (m.x * 420).toFixed(1) + '" cy="' + (m.y * 200).toFixed(1) + '" r="12" fill="none" stroke="#c62828" stroke-width="3"/>' +
       '<text x="' + (m.x * 420).toFixed(1) + '" y="' + (m.y * 200 + 4.5).toFixed(1) + '" text-anchor="middle" font-size="13" font-weight="bold" fill="#c62828" font-family="sans-serif">' + (i + 1) + '</text>').join("");
-    $("p_dmg").style.display = "block";
-  } else { $("p_dmg").style.display = "none"; }
+  } else { $("p_dmgMarks").innerHTML = ""; }
+  $("p_dmg").style.display = "block";
   /* dynamiczne dopasowanie ramek do ilości treści */
   const uTxt = $("f_usterki").value || "";
   $("p_usterki").style.minHeight = uTxt.length > 160 ? "0" : "64pt";
@@ -1577,6 +1571,10 @@ function printDoc() {
   $("p_stan").style.minHeight = sTxt.length > 80 ? "0" : "30pt";
   const wTxt = $("f_prace").value || "";
   $("p_prace").style.minHeight = wTxt.length > 120 ? "0" : "44pt";
+  const dpp = ($("f_data").value || "").split("-");
+  const dataPl = dpp.length === 3 ? dpp[2] + "." + dpp[1] + "." + dpp[0] : ($("f_data").value || "");
+  $("p_sig_data").textContent = dataPl;
+  $("p_przyj").textContent = dataPl + (ktoTeraz() !== "?" ? "  —  przyjął(a): " + ktoTeraz() : "");
   const sigImg = document.getElementById("p_podpis");
   if (!sig1.isEmpty()) { sigImg.src = sig1.toDataURL(); sigImg.style.display = "block"; }
   else { sigImg.style.display = "none"; }
@@ -2083,7 +2081,7 @@ function usrRender() {
   const u = usrAll();
   $("usrList").innerHTML = u.map((x, i) =>
     "👤 <b>" + escHtml(x.i) + "</b> — " + (x.r === "admin" ? "pełne uprawnienia" : "pracownik") +
-    ' <button type="button" class="abtn" data-usredit="' + i + '">✏ Edytuj / PIN</button>' +
+    ' <button type="button" class="abtn" data-usredit="' + i + '">✏ Edytuj (imię, PIN, rola)</button>' +
     (u.length > 1 ? ' <button type="button" class="abtn del" data-usrdel="' + i + '">✖</button>' : "")).join("<br>");
   usrEditIdx = null;
   $("usrAdd").textContent = "＋ Dodaj";
@@ -2485,8 +2483,6 @@ $("saveBtn").addEventListener("click", () => saveOrder(false));
 $("newBtn").addEventListener("click", () => {
   if (confirm("Rozpocząć nowe zlecenie? Niezapisane zmiany w formularzu zostaną utracone.")) resetForm();
 });
-$("saveBtn2").addEventListener("click", () => $("saveBtn").click());
-$("newBtn2").addEventListener("click", () => $("newBtn").click());
 
 /* ==================== ARCHIWUM — LISTA ==================== */
 function fmtDate(rec) {
