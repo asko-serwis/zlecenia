@@ -161,9 +161,18 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 /* ---------- ikona archiwum w nagłówku ---------- */
 #topNew,#topGraf{flex:0 0 auto;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 @media print{#topNew,#topGraf,#grafModal{display:none!important}}
+.graf-scroll{overflow-x:auto}
+#grafGrid{display:flex;flex-direction:column;gap:7px;min-width:720px}
+.graf-week{display:grid;grid-template-columns:repeat(7,minmax(106px,1fr));gap:7px}
+.graf-day{border-radius:10px;padding:6px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;flex-direction:column;min-height:170px}
+.graf-day .graf-bloki{display:flex;flex-direction:column;gap:4px;flex:1}
 @media (max-width:700px){
   #grafModal > div{max-width:100%!important;width:100%!important;margin:0!important;border-radius:0!important;max-height:100dvh!important;height:100dvh!important}
-  #grafModal .graf-body{max-height:none!important;flex:1}
+  #grafModal .graf-body{max-height:none!important;flex:1;display:flex;flex-direction:column;overflow-y:hidden}
+  #grafModal .graf-scroll{flex:1;display:flex;overflow-y:hidden}
+  #grafModal #grafGrid{flex:1;min-height:0}
+  #grafModal .graf-week{flex:1;min-height:0}
+  #grafModal .graf-day{min-height:0;overflow-y:auto}
 }
 #reloadBtn{flex:0 0 auto;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 @media print{#reloadBtn,#printBar{display:none!important}}
@@ -198,7 +207,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 83</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 85</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
@@ -277,7 +286,12 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       <div style="grid-column:span 2"><label class="f">Imię i nazwisko / nazwa firmy</label><input type="text" id="f_klient"></div>
       <div><label class="f">NIP / PESEL</label><input type="text" id="f_nip"></div>
       <div style="grid-column:span 2"><label class="f">Adres</label><input type="text" id="f_adres"></div>
-      <div><label class="f">Telefon / e-mail</label><input type="text" id="f_tel"></div>
+      <div><label class="f">Telefon / e-mail</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="f_tel" style="flex:1">
+          <button type="button" id="telCallBtn" title="Zadzwoń" style="width:52px;border:1.5px solid var(--border);border-radius:10px;background:#e8f5e9;font-size:20px;cursor:pointer">📞</button>
+        </div>
+      </div>
     </div>
     <div class="sub" style="margin-top:10px"><b>Oświadczenie o tytule prawnym:</b></div>
     <div class="checks">
@@ -552,8 +566,8 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
         <b id="grafTytul" style="margin-left:auto;font-size:14px"></b>
       </div>
       <div id="grafLegenda" style="display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--grey);margin-bottom:10px"></div>
-      <div style="overflow-x:auto">
-        <div id="grafGrid" style="min-width:720px"></div>
+      <div class="graf-scroll">
+        <div id="grafGrid"></div>
       </div>
     </div>
   </div>
@@ -569,7 +583,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <div id="statusChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
     <div id="storWarn">⚠ Pamięć przeglądarki jest niedostępna (tryb prywatny lub podgląd) — zlecenia będą pamiętane tylko do zamknięcia strony. Otwórz aplikację w Safari w zwykłym oknie.</div>
     <div class="grid g2">
-      <div><input type="text" id="archSearch" placeholder="Szukaj: nr, klient, rejestracja, VIN…"></div>
+      <div><input type="text" id="archSearch" placeholder="Szukaj: nr, klient, rejestracja, VIN, telefon…"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="btn btn-grey" id="expBtn" style="flex:1">⬇ Kopia (JSON)</button>
         <button type="button" class="btn btn-grey" id="csvBtn" style="flex:1">📊 CSV (Excel)</button>
@@ -1109,7 +1123,7 @@ $("zamHist").addEventListener("click", async ev => {
       }
       toast("✖ Zamówienie " + z.id + " anulowane");
     }
-    else toast("Nie udało się anulować (" + r.status + ") — skontaktuj się z filią OLK");
+    else toast(icBlad(r.status) + " — zamówienia nie anulowano; w razie potrzeby zadzwoń do filii OLK");
   } catch (e) { toast("Błąd połączenia przy anulowaniu"); }
 });
 function zamRows() {
@@ -1150,7 +1164,7 @@ $("zamBtn").addEventListener("click", async () => {
     window.__zamLines = rows;
     $("zamGo").disabled = false;
   } catch (e) {
-    $("zamList").innerHTML = "✖ Nie udało się pobrać wyceny: " + escHtml(String(e.message || e));
+    $("zamList").innerHTML = escHtml(icBlad(0));
   }
 });
 function zamHide() { $("zamModal").style.display = "none"; }
@@ -1223,7 +1237,7 @@ async function icQuoteAll() {
     let j = null;
     try { j = JSON.parse(txt); } catch (e) {}
     if (!r.ok || !j) {
-      rows.forEach(x => { const b = x.row.querySelector(".ic-result"); b.style.display = "block"; b.textContent = "✖ Błąd IC (" + r.status + ")"; });
+      rows.forEach(x => { const b = x.row.querySelector(".ic-result"); b.style.display = "block"; b.textContent = icBlad(r.status); });
       return;
     }
     const items = Array.isArray(j) ? j : (j.lines || []);
@@ -1236,7 +1250,7 @@ async function icQuoteAll() {
       else { box.style.display = "block"; box.textContent = "✖ IC nie zna numeru „" + x.idx + "” (pisownia ze spacjami ma znaczenie)"; }
     });
     toast("💶 Wyceniono " + hit + " z " + rows.length + " pozycji");
-  } catch (e) { toast("✖ Błąd połączenia z pośrednikiem: " + (e.message || e)); }
+  } catch (e) { toast(icBlad(0)); }
 }
 $("quoteAllBtn").addEventListener("click", icQuoteAll);
 
@@ -1252,6 +1266,16 @@ function icKey() {
   /* zgodność wstecz: stary klucz z pliku, dopóki nie zostanie zastąpiony kluczem urządzenia */
   const f = (window.ASKO_IC || {}).appKey || "";
   return f.indexOf("TU_WKLEJ") === 0 ? "" : f;
+}
+function icBlad(x) {
+  if (typeof navigator !== "undefined" && navigator.onLine === false)
+    return "✖ Brak internetu — sprawdź zasięg lub Wi-Fi i spróbuj ponownie";
+  const s = (typeof x === "number") ? x : 0;
+  if (s === 401 || s === 403) return "✖ Pośrednik odrzucił klucz Inter Cars — sprawdź ☁ → 🔐 Klucz Inter Cars (poproś osobę z pełnymi uprawnieniami)";
+  if (s === 429) return "✖ Za dużo zapytań naraz do Inter Cars — odczekaj chwilę i spróbuj ponownie";
+  if (s >= 500) return "✖ Inter Cars chwilowo nie odpowiada — spróbuj za minutę";
+  if (s) return "✖ Inter Cars odpowiedział błędem (" + s + ") — spróbuj ponownie; jeśli się powtarza, przekaż osobie z pełnymi uprawnieniami";
+  return "✖ Nie udało się połączyć z Inter Cars — sprawdź internet i spróbuj za chwilę";
 }
 function icConfigured() {
   return !!(window.ASKO_IC && window.ASKO_IC.workerUrl && window.ASKO_IC.workerUrl.indexOf("http") === 0 && icKey());
@@ -1385,7 +1409,7 @@ async function icQuoteFromLink(row, sku) {
     let j = null;
     try { j = JSON.parse(txt); } catch (e) {}
     const items = j ? (Array.isArray(j) ? j : (j.lines || [])) : [];
-    if (!r.ok || !items.length) { box.textContent = "✖ Nie udało się pobrać produktu " + sku + " (" + r.status + ")"; return; }
+    if (!r.ok || !items.length) { box.textContent = (!r.ok ? icBlad(r.status) : "✖ Inter Cars nie zna produktu " + sku + " — sprawdź numer"); return; }
     const it = items[0];
     if (it.index) row.querySelector(".p-cat").value = it.index;
     const n = row.querySelector(".p-name");
@@ -1978,6 +2002,11 @@ function historyLookup() {
     (co ? " — „" + co + "”" : "") + (filled.length ? ". Uzupełniono dane klienta z historii." : "") +
     " Zlecenia znajdziesz w archiwum, szukając po nr rej.", "ok");
 }
+$("telCallBtn").addEventListener("click", () => {
+  const nr = String($("f_tel").value || "").replace(/[^+\d]/g, "");
+  if (!nr) { toast("Wpisz najpierw numer telefonu"); return; }
+  location.href = "tel:" + nr;
+});
 $("f_vin").addEventListener("blur", historyLookup);
 $("f_rej").addEventListener("blur", historyLookup);
 
@@ -2161,9 +2190,18 @@ function openFromHash() {
     bar.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:rgba(20,20,20,.95);padding:14px 14px 10px;z-index:55;text-align:center";
     document.body.appendChild(bar);
     const barOff = () => { const b = document.getElementById("printBar"); if (b) b.remove(); };
+    const barGotowe = () => {
+      const b = document.getElementById("printBar");
+      if (!b) return;
+      b.innerHTML = '<button type="button" id="printBarZamknij" style="width:100%;max-width:420px;border:none;border-radius:12px;background:#2e7d32;color:#fff;font-size:18px;font-weight:bold;padding:14px;cursor:pointer">✅ Gotowe — zamknij to okno i wróć do aplikacji</button>';
+      document.getElementById("printBarZamknij").addEventListener("click", () => {
+        window.close();
+        setTimeout(barOff, 300); /* gdy Safari nie pozwoli zamknąć — pasek znika, okno zamyka się przyciskiem „Gotowe” u góry */
+      });
+    };
     document.getElementById("printNow").addEventListener("click", () => printDoc());
     document.getElementById("printBarX").addEventListener("click", barOff);
-    window.addEventListener("afterprint", () => setTimeout(barOff, 400));
+    window.addEventListener("afterprint", () => setTimeout(barGotowe, 400));
     setTimeout(printDoc, 900);
   } else {
     toast("📷 Otwarto zlecenie " + (rec.data.f_nr || "") + " z kodu QR");
@@ -2564,8 +2602,10 @@ function renderArch() {
     else if (archFilter !== "all" && orderStatus(r) !== archFilter) return false;
     if (!q) return true;
     const d = r.data || {};
-    return [d.f_nr, d.f_klient, d.f_rej, d.f_vin, d.f_marka, d.f_model, d.f_tel]
-      .some(v => (v || "").toLowerCase().includes(q));
+    if ([d.f_nr, d.f_klient, d.f_rej, d.f_vin, d.f_marka, d.f_model, d.f_tel]
+      .some(v => (v || "").toLowerCase().includes(q))) return true;
+    const qd = q.replace(/\D/g, "");
+    return qd.length >= 3 && String(d.f_tel || "").replace(/\D/g, "").includes(qd);
   };
   const rows = list.filter(match);
   if (!rows.length) {
@@ -2596,6 +2636,7 @@ function renderArch() {
       ((d.podpis2 || d.f_odb_data) ? '' : '<button type="button" class="abtn" data-act="odbior" style="background:#e8f5e9;color:#2e7d32">✅ Odbiór</button>') +
       '<button type="button" class="abtn" data-act="print">Drukuj</button>' +
       '<button type="button" class="abtn" data-act="copy">Kopiuj jako nowe</button>' +
+      (d.f_tel ? '<button type="button" class="abtn" data-act="tel" style="background:#e8f5e9;color:#2e7d32">📞 Zadzwoń</button>' : "") +
       '<button type="button" class="abtn" data-act="share">Udostępnij</button>' +
       '<button type="button" class="abtn del" data-act="del">Usuń</button>' +
       "</div>" +
@@ -2616,6 +2657,13 @@ $("archList").addEventListener("click", ev => {
   const rec = list.find(r => r.id === id);
   if (!rec) return;
   const act = btn.dataset.act;
+  if (act === "tel") {
+    const nr = String(rec.data.f_tel || "").replace(/[^+\d]/g, "");
+    if (!nr) { toast("Brak numeru telefonu w zleceniu"); return; }
+    $("archModal").style.display = "none";
+    location.href = "tel:" + nr;
+    return;
+  }
   if (["open", "print", "copy", "odbior", "share", "przypsms"].indexOf(act) !== -1) {
     $("archModal").style.display = "none";
   }
@@ -2729,7 +2777,7 @@ function grafBlok(r) {
   const label = (d.f_rej || d.f_klient || d.f_nr || "?");
   const auto = [d.f_marka, d.f_model].filter(Boolean).join(" ");
   return '<div data-gid="' + r.id + '" title="' + escHtml((d.f_nr || "") + " · " + auto + " · " + (d.f_klient || "") + " · " + (d.f_usterki || "").split("\n")[0].slice(0, 60) + " · " + (d.f_czas || "czas nieokreślony")) + '" ' +
-    'style="background:' + meta[1] + ';border-left:4px solid ' + meta[2] + ';color:' + meta[2] + ';border-radius:7px;padding:3px 7px;font-size:11.5px;font-weight:bold;cursor:pointer;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.08);height:' + Math.max(auto ? 36 : 24, Math.round(h * 9)) + 'px;display:flex;flex-direction:column;justify-content:center">' +
+    'style="background:' + meta[1] + ';border-left:4px solid ' + meta[2] + ';color:' + meta[2] + ';border-radius:7px;padding:3px 7px;font-size:11.5px;font-weight:bold;cursor:pointer;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.08);height:' + Math.max(auto ? 46 : 26, Math.round(h * 9)) + 'px;flex:0 0 auto;display:flex;flex-direction:column;justify-content:center">' +
     '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(label) + '</span>' +
     (auto ? '<span style="font-weight:normal;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(auto) + '</span>' : "") +
     '<span style="font-weight:normal;font-size:10px;opacity:.85">' + (h % 1 ? h.toFixed(1) : h) + ' h</span></div>';
@@ -2748,7 +2796,7 @@ function renderGraf() {
   $("grafTytul").textContent = pp(grafStart.getDate()) + "." + pp(grafStart.getMonth() + 1) + " – " + pp(kon.getDate()) + "." + pp(kon.getMonth() + 1) + "." + kon.getFullYear();
   let html = "";
   for (let t = 0; t < 2; t++) {
-    html += '<div style="display:grid;grid-template-columns:repeat(7,minmax(106px,1fr));gap:7px' + (t ? ";margin-top:7px" : "") + '">';
+    html += '<div class="graf-week">';
     for (let i = 0; i < 7; i++) {
       const dd = new Date(grafStart); dd.setDate(dd.getDate() + t * 7 + i);
       const iso = dd.getFullYear() + "-" + pp(dd.getMonth() + 1) + "-" + pp(dd.getDate());
@@ -2756,13 +2804,13 @@ function renderGraf() {
       const suma = zl.reduce((s, r) => s + grafHours((r.data || {}).f_czas), 0);
       const dzisiaj = dd.getTime() === dzis.getTime();
       const weekend = i >= 5;
-      html += '<div style="border:' + (dzisiaj ? "2px solid var(--orange)" : "1px solid var(--border)") + ';border-radius:10px;padding:6px;min-height:170px;background:' + (dzisiaj ? "#fff7ef" : weekend ? "#f7f7f7" : "#fff") + ';box-shadow:0 1px 3px rgba(0,0,0,.05)">' +
+      html += '<div class="graf-day" style="border:' + (dzisiaj ? "2px solid var(--orange)" : "1px solid var(--border)") + ';background:' + (dzisiaj ? "#fff7ef" : weekend ? "#f7f7f7" : "#fff") + '">' +
         '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">' +
         '<span style="font-size:10px;letter-spacing:.4px;color:' + (dzisiaj ? "var(--orange)" : "var(--grey)") + ';font-weight:bold">' + dniNazwy[i] + '</span>' +
         '<span style="font-size:13px;font-weight:bold;color:' + (dzisiaj ? "var(--orange)" : "var(--dark)") + '">' + pp(dd.getDate()) + "." + pp(dd.getMonth() + 1) + '</span>' +
         '</div>' +
         (zl.length ? '<div style="font-size:10px;font-weight:bold;text-align:right;margin:-4px 0 4px;color:' + (suma > 8 ? "#c62828" : "#9e9e9e") + '">Σ ' + (suma % 1 ? suma.toFixed(1) : suma) + ' h' + (suma > 8 ? " ⚠" : "") + '</div>' : "") +
-        '<div style="display:flex;flex-direction:column;gap:4px">' + zl.map(grafBlok).join("") + "</div></div>";
+        '<div class="graf-bloki">' + zl.map(grafBlok).join("") + "</div></div>";
     }
     html += "</div>";
   }
@@ -2772,16 +2820,54 @@ function renderGraf() {
 }
 $("topGraf").addEventListener("click", () => { grafStart = grafMonday(new Date()); renderGraf(); $("grafModal").style.display = "block"; });
 $("grafClose").addEventListener("click", () => { $("grafModal").style.display = "none"; });
+function grafMenuPokaz(rec) {
+  const d = rec.data || {};
+  const auto = [d.f_marka, d.f_model].filter(Boolean).join(" ");
+  const st = orderStatus(rec);
+  let m = $("grafMenu");
+  if (!m) {
+    m = document.createElement("div");
+    m.id = "grafMenu";
+    m.style.cssText = "position:fixed;left:0;right:0;bottom:0;background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -6px 30px rgba(0,0,0,.3);padding:14px 16px calc(14px + env(safe-area-inset-bottom));z-index:95";
+    document.body.appendChild(m);
+  }
+  m.innerHTML = '<div style="font-weight:bold;font-size:15px;margin-bottom:2px">' + escHtml(d.f_rej || d.f_klient || d.f_nr || "") + (auto ? " · " + escHtml(auto) : "") + "</div>" +
+    '<div style="font-size:12px;color:var(--grey);margin-bottom:10px">' + escHtml(d.f_nr || "") + "</div>" +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+    ["przyjete", "czesci", "w_naprawie", "gotowe"].map(k =>
+      '<button type="button" class="abtn" data-gstat="' + k + '" style="padding:11px 6px;background:' + STATUS_META[k][1] + ';color:' + STATUS_META[k][2] + ';border-left:4px solid ' + STATUS_META[k][2] + ';font-weight:bold' + (st === k ? ";outline:2.5px solid " + STATUS_META[k][2] : "") + '">' + STATUS_META[k][0] + "</button>").join("") +
+    "</div>" +
+    '<div style="display:flex;gap:8px;margin-top:10px">' +
+    '<button type="button" class="abtn" id="grafMenuOpen" style="flex:2;background:var(--dark);color:#fff;padding:11px">📂 Otwórz zlecenie</button>' +
+    '<button type="button" class="abtn" id="grafMenuX" style="flex:1;padding:11px">Anuluj</button></div>';
+  m.style.display = "block";
+  m.querySelectorAll("[data-gstat]").forEach(b => b.addEventListener("click", () => {
+    const list = loadAll(), rr = list.find(x => x.id === rec.id);
+    if (!rr) return;
+    rr.data.f_status = b.dataset.gstat;
+    histAdd(rr, "status: " + STATUS_META[b.dataset.gstat][0] + " (z grafiku)");
+    rr.updatedAt = new Date().toISOString();
+    saveAll(list); cloudPush(rr);
+    if (currentId === rec.id) document.querySelectorAll("input[name=f_status]").forEach(x => { x.checked = (x.value === b.dataset.gstat); });
+    m.style.display = "none";
+    renderGraf(); renderArch();
+    toast("✔ " + (rr.data.f_rej || rr.data.f_nr || "") + " → " + STATUS_META[b.dataset.gstat][0]);
+  }));
+  m.querySelector("#grafMenuOpen").addEventListener("click", () => {
+    setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
+    m.style.display = "none";
+    $("grafModal").style.display = "none";
+    toast("Otwarto zlecenie " + (rec.data.f_nr || "") + " z grafiku");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  m.querySelector("#grafMenuX").addEventListener("click", () => { m.style.display = "none"; });
+}
 $("grafModal").addEventListener("click", ev => {
-  if (ev.target.id === "grafModal") { $("grafModal").style.display = "none"; return; }
+  if (ev.target.id === "grafModal") { $("grafModal").style.display = "none"; const m = $("grafMenu"); if (m) m.style.display = "none"; return; }
   const blok = ev.target.closest("[data-gid]");
   if (!blok) return;
   const rec = loadAll().find(r => r.id === blok.dataset.gid);
-  if (!rec) return;
-  setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
-  $("grafModal").style.display = "none";
-  toast("Otwarto zlecenie " + (rec.data.f_nr || "") + " z grafiku");
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (rec) grafMenuPokaz(rec);
 });
 $("grafPrev").addEventListener("click", () => { grafStart.setDate(grafStart.getDate() - 7); renderGraf(); });
 $("grafNext").addEventListener("click", () => { grafStart.setDate(grafStart.getDate() + 7); renderGraf(); });
@@ -3063,7 +3149,7 @@ function shareOrder(rec) {
   document.querySelectorAll(".car-outline").forEach(g => { g.innerHTML = CAR_OUTLINE; });
   renderDmg();
   applyRole();
-  if (!usrCurrent()) lockShow();
+  if (!usrCurrent() && !/print=1/.test(location.hash || "")) lockShow();
   if (/[?&]r=\d+/.test(location.search)) {
     try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
   }
