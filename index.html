@@ -36,7 +36,7 @@ header.app h1{font-size:17px;margin:0;color:var(--dark);white-space:nowrap;overf
   header.app{gap:8px}
   header.app h1{font-size:15.5px}
   header.app img{height:38px}
-  #reloadBtn,#cloudBtn,#topArch{width:42px!important;height:42px!important;font-size:18px!important;border-radius:9px!important}
+  #topNew,#reloadBtn,#cloudBtn,#topArch{width:42px!important;height:42px!important;font-size:18px!important;border-radius:9px!important}
 }
 header.app h1 span{color:var(--orange)}
 header.app small{color:var(--grey)}
@@ -90,7 +90,7 @@ textarea{resize:vertical}
 }
 #printDoc{font-family:Arial,Helvetica,sans-serif;color:#1f1f1f;font-size:10pt}
 .p-header{display:flex;align-items:center;border-bottom:2.5pt solid var(--orange);padding-bottom:4px;gap:14px}
-.p-header img{height:58px}
+.p-header img{height:46px}
 .p-header .mid{flex:1;line-height:1.35}
 .p-header .mid b{font-size:12.5pt}
 .p-header .mid div{font-size:8.5pt;color:#5a5a5a}
@@ -101,21 +101,21 @@ textarea{resize:vertical}
 .p-sec .n{background:var(--orange);padding:3px 9px}
 .p-sec .t{background:#1f1f1f;padding:3px 10px;flex:1}
 table.p-fields{width:100%;border-collapse:collapse}
-table.p-fields td{border:0.5pt solid #b0b0b0;padding:3px 6px;vertical-align:top}
+table.p-fields td{border:0.5pt solid #b0b0b0;padding:2px 5px;vertical-align:top}
 table.p-fields .lbl{font-size:6.5pt;font-weight:bold;color:#5a5a5a;text-transform:uppercase;display:block}
-table.p-fields .val{font-size:10.5pt;min-height:13pt;display:block}
+table.p-fields .val{font-size:10pt;min-height:10pt;display:block}
 .p-checkline{font-size:9pt;margin:3px 0}
 .p-checkline b{margin-right:6px}
-.p-small{font-size:7.5pt;color:#5a5a5a;font-style:italic;margin:2px 0 0}
+.p-small{font-size:7pt;color:#5a5a5a;font-style:italic;margin:1px 0 0}
 .p-box{border:0.5pt solid #b0b0b0;border-radius:0;padding:4px 6px;min-height:16pt;font-size:10pt;white-space:pre-wrap}
 .p-box.tall{min-height:34pt}
 .p-banner{background:var(--orange);color:#fff;font-weight:bold;text-align:center;font-size:8.5pt;padding:4px 8px;margin:5px 0 3px}
 .p-accept{font-size:9pt;font-weight:bold;margin:3px 0 8px}
 .p-signs{display:flex;justify-content:space-between;gap:40px;margin-top:4px}
 .p-signs .s{flex:1;text-align:center}
-.p-signs .s .line{border-bottom:1pt dotted #8a8a8a;height:18pt}
+.p-signs .s .line{border-bottom:1pt dotted #8a8a8a;height:15pt}
 .p-signs .s .cap{font-size:7.5pt;color:#5a5a5a;margin-top:3px}
-ol.p-warunki{margin:4px 0 0 0;padding-left:16px;font-size:7.6pt;line-height:1.32}
+ol.p-warunki{margin:3px 0 0 0;padding-left:15px;font-size:7.3pt;line-height:1.28}
 ol.p-warunki li{margin-bottom:2.5pt}
 table.p-parts{width:100%;border-collapse:collapse;font-size:8pt}
 table.p-parts th{border:0.5pt solid #b0b0b0;background:#f5f5f5;padding:3px;font-size:7pt}
@@ -159,6 +159,8 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 }
 
 /* ---------- ikona archiwum w nagłówku ---------- */
+#topNew{flex:0 0 auto;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+@media print{#topNew{display:none!important}}
 #reloadBtn{flex:0 0 auto;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 @media print{#reloadBtn,#printBar{display:none!important}}
 #cloudBtn{margin-left:auto;flex:0 0 auto;position:relative;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -190,12 +192,12 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <body>
 <div class="app-ui">
 <header class="app">
-  <img id="logoImg" src="" alt="ASKO">
-  <div style="min-width:0">
-    <h1>Asystent zlecenia <span>ASKO</span></h1>
-    <small><b style="color:var(--orange)">wersja 70</b></small>
+  <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
+    <img id="logoImg" src="" alt="ASKO">
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 73</b></small>
   </div>
-  <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto;flex:0 0 auto">↻</button>
+  <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
+  <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
 </header>
@@ -314,6 +316,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <div class="card">
   <h2><span class="num">6</span> OPIS USTEREK I ZAKRES PRAC</h2>
   <div class="body">
+    <div id="vehHist" style="display:none;background:#e3f2fd;border:1.5px solid #1565c0;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13.5px;line-height:1.6"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
       <label class="f" style="margin:0">Objawy i zlecony zakres prac</label>
       <button type="button" class="micbtn" id="mic_usterki" title="Mikrofon wyłączy się sam po pauzie w mówieniu">🎤 Dyktuj</button>
@@ -426,7 +429,6 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <div class="footer-actions">
   <button class="btn btn-orange" style="font-size:17px;padding:14px 30px" id="saveBtn">💾 Zapisz zlecenie</button>
   <button class="btn btn-dark" style="font-size:17px;padding:14px 30px" onclick="doPrint()">🖨 Drukuj (2 strony)</button>
-  <button class="btn btn-grey" id="newBtn">🆕 Nowe zlecenie</button>
 </div>
 <div class="hint" style="text-align:center;padding-bottom:24px">Drukowanie zlecenia zapisuje je też automatycznie w archiwum. Drukuj dwustronnie — warunki naprawy trafią na odwrót kartki. Na iPhonie: „Udostępnij” → „Drukuj”.</div>
 <div id="zamModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:75;overflow:auto">
@@ -608,11 +610,13 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 
   <div class="p-sec"><span class="n">3</span><span class="t">STAN POJAZDU PRZY PRZYJĘCIU</span></div>
   <div class="p-checkline"><b>W pojeździe pozostawiono:</b> <span id="p_wyposazenie"></span></div>
-  <div class="p-box" id="p_stan"></div>
-  <svg id="p_dmg" viewBox="0 0 420 200" style="width:170pt;display:none;margin-top:2px">
-    <g class="car-outline"></g>
-    <g id="p_dmgMarks"></g>
-  </svg>
+  <div style="display:flex;gap:8px;align-items:stretch">
+    <div class="p-box" id="p_stan" style="flex:1"></div>
+    <svg id="p_dmg" viewBox="0 0 420 200" style="width:140pt;flex:0 0 auto;display:none;border:0.5pt solid #b0b0b0;padding:2px">
+      <g class="car-outline"></g>
+      <g id="p_dmgMarks"></g>
+    </svg>
+  </div>
 
   <div class="p-sec"><span class="n">4</span><span class="t">OPIS USTEREK I ZAKRES ZLECONYCH PRAC</span></div>
   <div class="p-box tall" id="p_usterki"></div>
@@ -1927,6 +1931,7 @@ function setFormData(d) {
   currentIcZam = (d.ic_zam || []).slice();
   renderZamHist();
   przeliczKoszt();
+  try { historyLookup(); } catch (e) {}
   currentPrzypDone = !!d.przyp_done;
   const sv = d.f_status || "przyjete";
   document.querySelectorAll("input[name=f_status]").forEach(r => { r.checked = (r.value === sv); });
@@ -1971,7 +1976,19 @@ function historyLookup() {
       return (vin && dv && dv === vin) || (rej && dr && dr === rej);
     })
     .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
-  if (!prev.length) return;
+  const vh = $("vehHist");
+  if (!prev.length) { vh.style.display = "none"; vh.innerHTML = ""; return; }
+  vh.style.display = "block";
+  vh.innerHTML = "<b>🔁 Historia napraw tego pojazdu (" + prev.length + "):</b><br>" +
+    prev.slice(0, 6).map(r => {
+      const dd = r.data || {};
+      const co = (dd.f_prace || dd.f_usterki || "").split("\n")[0].slice(0, 60);
+      return "• " + escHtml(fmtDate(r) || "") +
+        (dd.f_przebieg ? " · " + escHtml(dd.f_przebieg) + " km" : "") +
+        (co ? " — " + escHtml(co) : "") +
+        (dd.f_koszt ? " · " + escHtml(dd.f_koszt) : "");
+    }).join("<br>") +
+    (prev.length > 6 ? "<br>… i " + (prev.length - 6) + " starszych — pełne zlecenia w 📋 (szukaj po nr rej.)." : "");
   const last = prev[0], d = last.data || {};
   /* dociągnij brakujące dane klienta z historii */
   let filled = [];
@@ -2163,11 +2180,15 @@ function openFromHash() {
     toast("🖨 Przygotowuję wydruk…");
     const bar = document.createElement("div");
     bar.id = "printBar";
-    bar.innerHTML = '<button type="button" id="printNow" style="width:100%;max-width:420px;border:none;border-radius:12px;background:var(--orange);color:#fff;font-size:20px;font-weight:bold;padding:16px;cursor:pointer">🖨 DOTKNIJ, ABY WYDRUKOWAĆ</button>' +
-      '<div style="color:#fff;font-size:12px;margin-top:6px">Gdyby okno druku nie otworzyło się — można też: Udostępnij → Drukuj</div>';
-    bar.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:rgba(20,20,20,.95);padding:14px;z-index:99;text-align:center";
+    bar.innerHTML = '<button type="button" id="printBarX" style="position:absolute;top:6px;right:10px;border:none;background:none;color:#fff;font-size:26px;cursor:pointer;line-height:1">✕</button>' +
+      '<button type="button" id="printNow" style="width:100%;max-width:420px;border:none;border-radius:12px;background:var(--orange);color:#fff;font-size:20px;font-weight:bold;padding:16px;cursor:pointer">🖨 DOTKNIJ, ABY WYDRUKOWAĆ</button>' +
+      '<div style="color:#fff;font-size:12px;margin-top:6px">Po wydruku pasek zniknie sam. Zamknięcie: ✕</div>';
+    bar.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:rgba(20,20,20,.95);padding:14px 14px 10px;z-index:55;text-align:center";
     document.body.appendChild(bar);
+    const barOff = () => { const b = document.getElementById("printBar"); if (b) b.remove(); };
     document.getElementById("printNow").addEventListener("click", () => printDoc());
+    document.getElementById("printBarX").addEventListener("click", barOff);
+    window.addEventListener("afterprint", () => setTimeout(barOff, 400));
     setTimeout(printDoc, 900);
   } else {
     toast("📷 Otwarto zlecenie " + (rec.data.f_nr || "") + " z kodu QR");
@@ -2480,7 +2501,7 @@ $("f_termin_kal").addEventListener("change", () => {
 $("f_uslugi").addEventListener("blur", normalizeKoszt);
 $("f_uslugi").addEventListener("change", normalizeKoszt);
 $("saveBtn").addEventListener("click", () => saveOrder(false));
-$("newBtn").addEventListener("click", () => {
+$("topNew").addEventListener("click", () => {
   if (confirm("Rozpocząć nowe zlecenie? Niezapisane zmiany w formularzu zostaną utracone.")) resetForm();
 });
 
