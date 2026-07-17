@@ -89,7 +89,7 @@ textarea{resize:vertical}
   @page{size:A4;margin:10mm 12mm 13mm 12mm}
 }
 #printDoc{font-family:Arial,Helvetica,sans-serif;color:#1f1f1f;font-size:10pt}
-.p-header{display:flex;align-items:center;border-bottom:2.5pt solid var(--orange);padding-bottom:6px;gap:14px}
+.p-header{display:flex;align-items:center;border-bottom:2.5pt solid var(--orange);padding-bottom:4px;gap:14px}
 .p-header img{height:58px}
 .p-header .mid{flex:1;line-height:1.35}
 .p-header .mid b{font-size:12.5pt}
@@ -97,23 +97,23 @@ textarea{resize:vertical}
 .p-header .right{text-align:right}
 .p-header .right .t{color:var(--orange);font-weight:bold;font-size:15pt}
 .p-header .right div{font-size:9pt}
-.p-sec{display:flex;margin:8px 0 4px;font-weight:bold;color:#fff;font-size:10pt}
+.p-sec{display:flex;margin:5px 0 3px;font-weight:bold;color:#fff;font-size:10pt}
 .p-sec .n{background:var(--orange);padding:3px 9px}
 .p-sec .t{background:#1f1f1f;padding:3px 10px;flex:1}
 table.p-fields{width:100%;border-collapse:collapse}
 table.p-fields td{border:0.5pt solid #b0b0b0;padding:3px 6px;vertical-align:top}
 table.p-fields .lbl{font-size:6.5pt;font-weight:bold;color:#5a5a5a;text-transform:uppercase;display:block}
 table.p-fields .val{font-size:10.5pt;min-height:13pt;display:block}
-.p-checkline{font-size:9pt;margin:5px 0}
+.p-checkline{font-size:9pt;margin:3px 0}
 .p-checkline b{margin-right:6px}
 .p-small{font-size:7.5pt;color:#5a5a5a;font-style:italic;margin:2px 0 0}
-.p-box{border:0.5pt solid #b0b0b0;border-radius:0;padding:5px 6px;min-height:30pt;font-size:10pt;white-space:pre-wrap}
-.p-box.tall{min-height:64pt}
-.p-banner{background:var(--orange);color:#fff;font-weight:bold;text-align:center;font-size:8.5pt;padding:5px 8px;margin:7px 0 4px}
-.p-accept{font-size:9pt;font-weight:bold;margin:4px 0 16px}
-.p-signs{display:flex;justify-content:space-between;gap:40px;margin-top:8px}
+.p-box{border:0.5pt solid #b0b0b0;border-radius:0;padding:4px 6px;min-height:16pt;font-size:10pt;white-space:pre-wrap}
+.p-box.tall{min-height:34pt}
+.p-banner{background:var(--orange);color:#fff;font-weight:bold;text-align:center;font-size:8.5pt;padding:4px 8px;margin:5px 0 3px}
+.p-accept{font-size:9pt;font-weight:bold;margin:3px 0 8px}
+.p-signs{display:flex;justify-content:space-between;gap:40px;margin-top:4px}
 .p-signs .s{flex:1;text-align:center}
-.p-signs .s .line{border-bottom:1pt dotted #8a8a8a;height:22pt}
+.p-signs .s .line{border-bottom:1pt dotted #8a8a8a;height:18pt}
 .p-signs .s .cap{font-size:7.5pt;color:#5a5a5a;margin-top:3px}
 ol.p-warunki{margin:4px 0 0 0;padding-left:16px;font-size:7.6pt;line-height:1.32}
 ol.p-warunki li{margin-bottom:2.5pt}
@@ -193,7 +193,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <img id="logoImg" src="" alt="ASKO">
   <div style="min-width:0">
     <h1>Asystent zlecenia <span>ASKO</span></h1>
-    <small><b style="color:var(--orange)">wersja 69</b></small>
+    <small><b style="color:var(--orange)">wersja 70</b></small>
   </div>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:auto;flex:0 0 auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
@@ -609,7 +609,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
   <div class="p-sec"><span class="n">3</span><span class="t">STAN POJAZDU PRZY PRZYJĘCIU</span></div>
   <div class="p-checkline"><b>W pojeździe pozostawiono:</b> <span id="p_wyposazenie"></span></div>
   <div class="p-box" id="p_stan"></div>
-  <svg id="p_dmg" viewBox="0 0 420 200" style="width:220pt;display:none;margin-top:4px">
+  <svg id="p_dmg" viewBox="0 0 420 200" style="width:170pt;display:none;margin-top:2px">
     <g class="car-outline"></g>
     <g id="p_dmgMarks"></g>
   </svg>
@@ -1535,7 +1535,7 @@ function printDoc() {
     ["dostarczone przez Zleceniodawcę", $("c_klient").checked],
   ]);
   const parts = getParts();
-  const rowsN = Math.max(5, parts.length + 3);
+  const rowsN = parts.length ? parts.length + 1 : 3;
   let ptr = "";
   for (let i = 0; i < rowsN; i++) {
     const pt = parts[i] || {};
