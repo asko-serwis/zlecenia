@@ -36,7 +36,7 @@ header.app h1{font-size:17px;margin:0;color:var(--dark);white-space:nowrap;overf
   header.app{gap:8px}
   header.app h1{font-size:15.5px}
   header.app img{height:38px}
-  #topNew,#reloadBtn,#cloudBtn,#topArch{width:42px!important;height:42px!important;font-size:18px!important;border-radius:9px!important}
+  #topNew,#reloadBtn,#cloudBtn,#topArch,#topGraf{width:42px!important;height:42px!important;font-size:18px!important;border-radius:9px!important}
 }
 header.app h1 span{color:var(--orange)}
 header.app small{color:var(--grey)}
@@ -159,8 +159,8 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 }
 
 /* ---------- ikona archiwum w nagłówku ---------- */
-#topNew{flex:0 0 auto;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-@media print{#topNew{display:none!important}}
+#topNew,#topGraf{flex:0 0 auto;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+@media print{#topNew,#topGraf,#grafModal{display:none!important}}
 #reloadBtn{flex:0 0 auto;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 @media print{#reloadBtn,#printBar{display:none!important}}
 #cloudBtn{margin-left:auto;flex:0 0 auto;position:relative;border:none;background:var(--dark);color:#fff;font-size:22px;border-radius:10px;width:50px;height:50px;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -194,11 +194,12 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 76</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 81</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
   <button type="button" id="cloudBtn" title="Synchronizacja między urządzeniami" style="margin-left:0">☁<span id="cloudDot"></span></button>
+  <button type="button" id="topGraf" title="Grafik warsztatu" style="margin-left:0">🗓</button>
   <button type="button" id="topArch" title="Zapisane zlecenia">📋<span id="topArchCount">0</span></button>
 </header>
 
@@ -235,6 +236,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <label class="f">Status zlecenia</label>
     <div class="checks">
       <label><input type="radio" name="f_status" value="przyjete" checked> przyjęte</label>
+      <label><input type="radio" name="f_status" value="czesci"> oczekuje na części</label>
       <label><input type="radio" name="f_status" value="w_naprawie"> w naprawie</label>
       <label><input type="radio" name="f_status" value="gotowe"> gotowe do odbioru</label>
       <label><input type="radio" name="f_status" value="wydane"> wydane</label>
@@ -324,6 +326,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       <button type="button" class="micbtn" id="mic_usterki" title="Mikrofon wyłączy się sam po pauzie w mówieniu">🎤 Dyktuj</button>
     </div>
     <textarea id="f_usterki" rows="6" placeholder="Objawy zgłaszane przez klienta oraz zlecony zakres prac — wpisz lub podyktuj"></textarea>
+    <div style="margin-top:10px"><label class="f">⏱ Szacunkowy czas robocizny — tylko do użytku wewnętrznego, nie drukuje się (zasila grafik 🗓)</label><input type="text" id="f_czas" placeholder="np. 3–4 godziny / 2 dni"></div>
     <div class="grid g2" style="margin-top:10px">
       <div><label class="f">Przewidywany termin wykonania</label>
         <div style="display:flex;gap:6px;align-items:stretch">
@@ -528,6 +531,28 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
         </div>
         <div class="hint" id="icKeyStan" style="margin-top:6px"></div>
       </div>
+    </div>
+  </div>
+</div>
+<div id="grafModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60">
+  <div style="background:#fff;max-width:860px;margin:4vh auto 0;border-radius:12px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;width:calc(100% - 20px);box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dark);color:#fff">
+      <b>🗓 Grafik warsztatu</b>
+      <button type="button" id="grafClose" style="border:none;background:none;color:#fff;font-size:24px;cursor:pointer;padding:0 4px">✕</button>
+    </div>
+    <div style="padding:10px 12px;overflow-y:auto">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <button type="button" class="abtn" id="grafPrev">‹ poprz.</button>
+        <button type="button" class="abtn" id="grafToday" style="background:var(--dark);color:#fff">dziś</button>
+        <button type="button" class="abtn" id="grafNext">nast. ›</button>
+        <b id="grafTytul" style="margin-left:auto;font-size:14px"></b>
+      </div>
+      <div id="grafLegenda" style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin-bottom:8px"></div>
+      <div style="overflow-x:auto">
+        <div id="grafGrid" style="display:grid;grid-template-columns:repeat(7,minmax(96px,1fr));gap:6px;min-width:700px"></div>
+      </div>
+      <div id="grafBezTerminu" style="margin-top:10px"></div>
+      <div class="hint" style="margin-top:8px">Zlecenie ląduje w dniu ze swojego terminu (data DD.MM.RRRR — najprościej wybrać ją 📅), a wysokość klocka odpowiada godzinom z pola „⏱ Szacunkowy czas robocizny”. Σ pokazuje obłożenie dnia — czerwone, gdy ponad 8 h. Dotknięcie klocka otwiera zlecenie.</div>
     </div>
   </div>
 </div>
@@ -1817,7 +1842,7 @@ $("odbNow").addEventListener("click", () => {
 
 /* ==================== FORMULARZ ↔ DANE ==================== */
 const TXT_IDS = ["f_nr","f_data","f_godz","f_marka","f_model","f_wersja","f_rok","f_przebieg","f_rej","f_vin","f_datarej1","f_pojemnosc","f_moc","f_rodzpaliwa",
-                 "f_paliwo","f_klient","f_nip","f_adres","f_tel","f_stan","f_usterki","f_uslugi","f_koszt","f_termin","w_klucz_szt",
+                 "f_paliwo","f_klient","f_nip","f_adres","f_tel","f_stan","f_usterki","f_czas","f_uslugi","f_koszt","f_termin","w_klucz_szt",
                  "f_odb_data","f_odb_godz","f_prace","f_przyp_kiedy","f_przyp_txt"];
 const CHK_IDS = ["w_dowod","w_klucz","c_oryg","c_zam","c_uzyw","c_klient"];
 
@@ -2487,7 +2512,8 @@ $("archModalList").addEventListener("click", ev => {
 
 const STATUS_META = {
   przyjete:   ["przyjęte", "#e3f2fd", "#1565c0"],
-  w_naprawie: ["w naprawie", "#fff3e0", "#e65100"],
+  czesci:     ["oczekuje na części", "#fff3e0", "#e65100"],
+  w_naprawie: ["w naprawie", "#fff8e1", "#a67c00"],
   gotowe:     ["gotowe do odbioru", "#e8f5e9", "#2e7d32"],
   wydane:     ["wydane", "#eeeeee", "#555"],
 };
@@ -2504,7 +2530,7 @@ function przypDue(r) {
   return d.przyp_data <= soon.toISOString().slice(0, 10);
 }
 function renderStatusChips(list) {
-  const counts = { all: list.length, przyjete: 0, w_naprawie: 0, gotowe: 0, wydane: 0, przyp: 0 };
+  const counts = { all: list.length, przyjete: 0, czesci: 0, w_naprawie: 0, gotowe: 0, wydane: 0, przyp: 0 };
   list.forEach(r => { counts[orderStatus(r)]++; if (przypDue(r)) counts.przyp++; });
   const chip = (key, label, extra) =>
     '<button type="button" class="abtn" data-filter="' + key + '" style="' +
@@ -2513,6 +2539,7 @@ function renderStatusChips(list) {
   $("statusChips").innerHTML =
     chip("all", "Wszystkie") +
     chip("przyjete", "przyjęte") +
+    chip("czesci", "⏳ części") +
     chip("w_naprawie", "w naprawie") +
     chip("gotowe", "gotowe") +
     chip("wydane", "wydane") +
@@ -2559,7 +2586,8 @@ function renderArch() {
       })() +
       '<div class="abtns">' +
       '<button type="button" class="abtn open" data-act="open">Otwórz</button>' +
-      (orderStatus(r) === "przyjete" ? '<button type="button" class="abtn" data-act="advance" style="background:#fff3e0;color:#e65100">▶ W naprawie</button>' : "") +
+      (orderStatus(r) === "przyjete" || orderStatus(r) === "czesci" ? '<button type="button" class="abtn" data-act="advance" style="background:#fff8e1;color:#a67c00">🔧 W naprawie</button>' : "") +
+      (orderStatus(r) === "przyjete" || orderStatus(r) === "w_naprawie" ? '<button type="button" class="abtn" data-act="czesci" style="background:#fff3e0;color:#e65100">⏳ Części</button>' : "") +
       (orderStatus(r) === "w_naprawie" ? '<button type="button" class="abtn" data-act="advance" style="background:#e8f5e9;color:#2e7d32">✅ Gotowe</button>' : "") +
       (przypDue(r) && d.f_tel ? '<button type="button" class="abtn" data-act="przypsms" style="background:#e3f2fd;color:#1565c0">📩 SMS</button>' : "") +
       (przypDue(r) ? '<button type="button" class="abtn" data-act="przypdone">✓ Załatwione</button>' : "") +
@@ -2618,9 +2646,21 @@ $("archList").addEventListener("click", ev => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   } else if (act === "share") {
     shareOrder(rec);
+  } else if (act === "czesci") {
+    rec.data.f_status = "czesci";
+    histAdd(rec, "status: oczekuje na części");
+    rec.updatedAt = new Date().toISOString();
+    saveAll(list);
+    cloudPush(rec);
+    if (currentId === id) {
+      document.querySelectorAll("input[name=f_status]").forEach(x => { x.checked = (x.value === "czesci"); });
+    }
+    renderArch();
+    toast("⏳ " + (rec.data.f_nr || "Zlecenie") + " — oczekuje na części");
   } else if (act === "advance") {
     const st = orderStatus(rec);
-    rec.data.f_status = (st === "przyjete") ? "w_naprawie" : "gotowe";
+    rec.data.f_status = (st === "w_naprawie") ? "gotowe" : "w_naprawie";
+    histAdd(rec, "status: " + (STATUS_META[rec.data.f_status] ? STATUS_META[rec.data.f_status][0] : rec.data.f_status));
     rec.updatedAt = new Date().toISOString();
     saveAll(list);
     cloudPush(rec);
@@ -2653,6 +2693,95 @@ $("archList").addEventListener("click", ev => {
     toast("Usunięto zlecenie");
   }
 });
+
+/* ==================== GRAFIK WARSZTATU ==================== */
+let grafStart = null; /* poniedziałek pokazywanego tygodnia */
+function grafMonday(d) {
+  const x = new Date(d); x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - (x.getDay() + 6) % 7);
+  return x;
+}
+function grafHours(txt) {
+  const t = deacc(String(txt || "").toLowerCase());
+  const nums = (t.match(/\d+(?:[.,]\d+)?/g) || []).map(s => parseFloat(s.replace(",", ".")));
+  const n = nums.length ? nums[nums.length - 1] : 0; /* z widełek bierzemy górną */
+  let h;
+  if (/dzie|dni/.test(t)) h = (n || 1) * 8;
+  else if (n) h = n;
+  else h = 2; /* brak liczby — skromny domyślny klocek */
+  return Math.min(Math.max(h, 0.5), 40);
+}
+function grafTermin(txt) {
+  const t = String(txt || "");
+  let m = t.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+  if (m) return m[3] + "-" + m[2] + "-" + m[1];
+  m = t.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[0];
+  return null;
+}
+function grafBlok(r) {
+  const d = r.data || {};
+  const st = orderStatus(r);
+  const meta = STATUS_META[st] || ["", "#eee", "#555"];
+  const h = grafHours(d.f_czas);
+  const label = (d.f_rej || d.f_klient || d.f_nr || "?");
+  return '<div data-gid="' + r.id + '" title="' + escHtml((d.f_nr || "") + " · " + (d.f_klient || "") + " · " + (d.f_usterki || "").split("\n")[0].slice(0, 60) + " · " + (d.f_czas || "czas nieokreślony")) + '" ' +
+    'style="background:' + meta[1] + ';border-left:4px solid ' + meta[2] + ';color:' + meta[2] + ';border-radius:6px;padding:2px 5px;font-size:11.5px;font-weight:bold;cursor:pointer;overflow:hidden;height:' + Math.max(22, Math.round(h * 9)) + 'px;display:flex;flex-direction:column;justify-content:center">' +
+    '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(label) + '</span>' +
+    '<span style="font-weight:normal;font-size:10.5px">' + (h % 1 ? h.toFixed(1) : h) + ' h</span></div>';
+}
+function renderGraf() {
+  if (!grafStart) grafStart = grafMonday(new Date());
+  const dniNazwy = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
+  const dzis = new Date(); dzis.setHours(0, 0, 0, 0);
+  const list = loadAll().filter(r => orderStatus(r) !== "wydane");
+  const naDzien = {}, bezTerminu = [];
+  list.forEach(r => {
+    const iso = grafTermin((r.data || {}).f_termin);
+    if (iso) (naDzien[iso] = naDzien[iso] || []).push(r);
+    else bezTerminu.push(r);
+  });
+  const kon = new Date(grafStart); kon.setDate(kon.getDate() + 6);
+  const pp = n => String(n).padStart(2, "0");
+  $("grafTytul").textContent = pp(grafStart.getDate()) + "." + pp(grafStart.getMonth() + 1) + " – " + pp(kon.getDate()) + "." + pp(kon.getMonth() + 1) + "." + kon.getFullYear();
+  let html = "";
+  for (let i = 0; i < 7; i++) {
+    const dd = new Date(grafStart); dd.setDate(dd.getDate() + i);
+    const iso = dd.toISOString().slice(0, 10);
+    const zl = (naDzien[iso] || []);
+    const suma = zl.reduce((s, r) => s + grafHours((r.data || {}).f_czas), 0);
+    const dzisiaj = dd.getTime() === dzis.getTime();
+    html += '<div style="border:1.5px solid ' + (dzisiaj ? "var(--orange)" : "var(--border)") + ';border-radius:8px;padding:5px;min-height:120px;background:' + (dzisiaj ? "#fffaf5" : "#fff") + '">' +
+      '<div style="font-size:12px;font-weight:bold;display:flex;justify-content:space-between;margin-bottom:5px">' +
+      '<span>' + dniNazwy[i] + " " + pp(dd.getDate()) + "." + pp(dd.getMonth() + 1) + '</span>' +
+      (zl.length ? '<span style="color:' + (suma > 8 ? "#c62828" : "var(--grey)") + '">Σ ' + (suma % 1 ? suma.toFixed(1) : suma) + 'h' + (suma > 8 ? " ⚠" : "") + '</span>' : "") +
+      '</div><div style="display:flex;flex-direction:column;gap:4px">' +
+      zl.map(grafBlok).join("") + "</div></div>";
+  }
+  $("grafGrid").innerHTML = html;
+  $("grafBezTerminu").innerHTML = bezTerminu.length
+    ? '<b style="font-size:13px">Bez ustalonego terminu (' + bezTerminu.length + '):</b><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
+      bezTerminu.map(r => grafBlok(r).replace(/height:\d+px/, "height:34px")).join("") + "</div>"
+    : "";
+  $("grafLegenda").innerHTML = ["przyjete", "czesci", "w_naprawie", "gotowe"].map(k =>
+    '<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:14px;height:14px;border-radius:4px;background:' + STATUS_META[k][1] + ';border-left:4px solid ' + STATUS_META[k][2] + '"></span>' + STATUS_META[k][0] + "</span>").join("");
+}
+$("topGraf").addEventListener("click", () => { grafStart = grafMonday(new Date()); renderGraf(); $("grafModal").style.display = "block"; });
+$("grafClose").addEventListener("click", () => { $("grafModal").style.display = "none"; });
+$("grafModal").addEventListener("click", ev => {
+  if (ev.target.id === "grafModal") { $("grafModal").style.display = "none"; return; }
+  const blok = ev.target.closest("[data-gid]");
+  if (!blok) return;
+  const rec = loadAll().find(r => r.id === blok.dataset.gid);
+  if (!rec) return;
+  setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
+  $("grafModal").style.display = "none";
+  toast("Otwarto zlecenie " + (rec.data.f_nr || "") + " z grafiku");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+$("grafPrev").addEventListener("click", () => { grafStart.setDate(grafStart.getDate() - 7); renderGraf(); });
+$("grafNext").addEventListener("click", () => { grafStart.setDate(grafStart.getDate() + 7); renderGraf(); });
+$("grafToday").addEventListener("click", () => { grafStart = grafMonday(new Date()); renderGraf(); });
 
 /* ==================== EKSPORT / IMPORT ==================== */
 $("expBtn").addEventListener("click", () => {
