@@ -207,7 +207,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 85</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 87</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
@@ -452,6 +452,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <div class="footer-actions">
   <button class="btn btn-orange" style="font-size:17px;padding:14px 30px" id="saveBtn">💾 Zapisz zlecenie</button>
   <button class="btn btn-dark" style="font-size:17px;padding:14px 30px" onclick="doPrint()">🖨 Drukuj</button>
+  <button class="btn btn-grey" id="faktBtn">🧾 Dane do faktury</button>
 </div>
 <div class="hint" style="text-align:center;padding-bottom:24px">Drukowanie zlecenia zapisuje je też automatycznie w archiwum. Na iPhonie: „Udostępnij” → „Drukuj”.</div>
 <div id="zamModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:75;overflow:auto">
@@ -552,6 +553,22 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     </div>
   </div>
 </div>
+<div id="faktModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;overflow:auto">
+  <div style="background:#fff;max-width:560px;margin:5vh auto;border-radius:12px;overflow:hidden;width:calc(100% - 24px)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dark);color:#fff">
+      <b>🧾 Dane do faktury (eSowa)</b>
+      <button type="button" id="faktClose" style="border:none;background:none;color:#fff;font-size:24px;cursor:pointer;padding:0 4px">✕</button>
+    </div>
+    <div style="padding:12px 16px">
+      <textarea id="faktTxt" readonly rows="16" style="width:100%;box-sizing:border-box;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.5"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button type="button" class="btn btn-orange" id="faktKopiuj" style="flex:1">📋 Kopiuj</button>
+        <button type="button" class="btn btn-grey" id="faktShare" style="flex:1">📤 Udostępnij</button>
+      </div>
+      <div class="hint" style="margin-top:8px">Wklej do eSowy przy wystawianiu faktury. Na komputer najprościej: „Udostępnij” → AirDrop / e-mail / notatka.</div>
+    </div>
+  </div>
+</div>
 <div id="grafModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60">
   <div style="background:#fff;max-width:860px;margin:4vh auto 0;border-radius:12px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;width:calc(100% - 20px);box-shadow:0 10px 40px rgba(0,0,0,.3)">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dark);color:#fff">
@@ -580,6 +597,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     </div>
     <div style="overflow-y:auto;padding:10px 12px;max-height:78vh">
 
+    <div id="kopiaBaner" style="display:none;background:#fff3e0;border:1.5px solid var(--orange);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13.5px"></div>
     <div id="statusChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
     <div id="storWarn">⚠ Pamięć przeglądarki jest niedostępna (tryb prywatny lub podgląd) — zlecenia będą pamiętane tylko do zamknięcia strony. Otwórz aplikację w Safari w zwykłym oknie.</div>
     <div class="grid g2">
@@ -588,6 +606,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
         <button type="button" class="btn btn-grey" id="expBtn" style="flex:1">⬇ Kopia (JSON)</button>
         <button type="button" class="btn btn-grey" id="csvBtn" style="flex:1">📊 CSV (Excel)</button>
         <label class="btn btn-grey" style="display:inline-flex;align-items:center;justify-content:center;flex:1">⬆ Import<input type="file" id="impInput" accept=".json,application/json" style="display:none"></label>
+        <button type="button" class="btn btn-grey" id="undoImpBtn" style="flex:1;display:none">↩ Cofnij import</button>
       </div>
     </div>
     <div class="arch-list" id="archList"></div>
@@ -2043,6 +2062,24 @@ async function startCloudSync() {
       if (!c || (r.updatedAt || "") > (c.updatedAt || "")) await col.doc(r.id).set(r);
     }
   } catch (e) { toast("☁ Problem z pierwszą synchronizacją: " + (e.code || e.message)); }
+  /* codzienna migawka bezpieczeństwa (bez grafik podpisów, żeby zmieścić się w limicie dokumentu) */
+  try {
+    const dzisId = new Date().toISOString().slice(0, 10);
+    const kol = CLOUD.db.collection("kopie");
+    const ma = await kol.doc(dzisId).get();
+    if (!ma.exists) {
+      const lekkie = loadAll().map(r => {
+        const k = JSON.parse(JSON.stringify(r));
+        if (k.data) { delete k.data.podpis; delete k.data.podpis2; }
+        return k;
+      });
+      await kol.doc(dzisId).set({ ts: new Date().toISOString(), n: lekkie.length, orders: lekkie });
+      const stare = await kol.get();
+      const ids = []; stare.forEach(dc => ids.push(dc.id));
+      ids.sort();
+      for (const id of ids.slice(0, Math.max(0, ids.length - 14))) { try { await kol.doc(id).delete(); } catch (e) {} }
+    }
+  } catch (e) {}
   /* nasłuch w czasie rzeczywistym: chmura -> to urządzenie */
   CLOUD.unsub = col.onSnapshot(snap => {
     const list = [];
@@ -2591,8 +2628,20 @@ $("statusChips").addEventListener("click", ev => {
   archFilter = b.dataset.filter;
   renderArch();
 });
+function kopiaBaner() {
+  const el = $("kopiaBaner");
+  if (!el) return;
+  let ts = 0;
+  try { ts = +localStorage.getItem("asko_last_backup") || 0; } catch (e) {}
+  const dni = ts ? Math.floor((Date.now() - ts) / 86400000) : null;
+  if (dni !== null && dni < 7) { el.style.display = "none"; return; }
+  el.style.display = "block";
+  el.innerHTML = "💾 <b>Kopia zapasowa: " + (dni === null ? "jeszcze żadnej nie zrobiono" : "ostatnia " + dni + " dni temu") +
+    "</b> — dotknij „⬇ Kopia (JSON)” poniżej i zachowaj plik (np. w Plikach/iCloud). Chmura synchronizuje, ale kopia w pliku chroni przed omyłkowym skasowaniem.";
+}
 function renderArch() {
   renderTopList();
+  kopiaBaner();
   const q = ($("archSearch").value || "").trim().toLowerCase();
   const list = loadAll().slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   renderStatusChips(list);
@@ -2637,6 +2686,7 @@ function renderArch() {
       '<button type="button" class="abtn" data-act="print">Drukuj</button>' +
       '<button type="button" class="abtn" data-act="copy">Kopiuj jako nowe</button>' +
       (d.f_tel ? '<button type="button" class="abtn" data-act="tel" style="background:#e8f5e9;color:#2e7d32">📞 Zadzwoń</button>' : "") +
+      '<button type="button" class="abtn" data-act="faktura" style="background:#ede7f6;color:#4527a0">🧾 Faktura</button>' +
       '<button type="button" class="abtn" data-act="share">Udostępnij</button>' +
       '<button type="button" class="abtn del" data-act="del">Usuń</button>' +
       "</div>" +
@@ -2657,6 +2707,11 @@ $("archList").addEventListener("click", ev => {
   const rec = list.find(r => r.id === id);
   if (!rec) return;
   const act = btn.dataset.act;
+  if (act === "faktura") {
+    $("archModal").style.display = "none";
+    fakturaPokaz(rec.data || {});
+    return;
+  }
   if (act === "tel") {
     const nr = String(rec.data.f_tel || "").replace(/[^+\d]/g, "");
     if (!nr) { toast("Brak numeru telefonu w zleceniu"); return; }
@@ -2742,6 +2797,51 @@ $("archList").addEventListener("click", ev => {
     renderArch();
     toast("Usunięto zlecenie");
   }
+});
+
+/* ==================== DANE DO FAKTURY (eSowa) ==================== */
+function fakturaTekst(d) {
+  const netto = ((d.f_nip || "").trim() !== "");
+  const rodzaj = netto ? "netto" : "brutto";
+  const L = [];
+  L.push("=== DANE DO FAKTURY — zlecenie " + (d.f_nr || "") + " ===");
+  L.push("");
+  L.push("NABYWCA:");
+  L.push((d.f_klient || "").trim() || "—");
+  if (d.f_nip) L.push("NIP: " + d.f_nip);
+  if (d.f_adres) L.push("Adres: " + d.f_adres);
+  if (d.f_tel) L.push("Tel: " + d.f_tel);
+  L.push("");
+  L.push("POJAZD: " + [[d.f_marka, d.f_model].filter(Boolean).join(" "), d.f_rej, d.f_vin ? "VIN " + d.f_vin : "", d.f_przebieg ? d.f_przebieg + " km" : ""].filter(Boolean).join(" · "));
+  L.push("Data przyjęcia: " + (d.f_data ? d.f_data.split("-").reverse().join(".") : "—") + (d.f_odb_data ? " · odbiór: " + d.f_odb_data.split("-").reverse().join(".") : ""));
+  L.push("");
+  L.push("POZYCJE (ceny " + rodzaj + "):");
+  let lp = 1;
+  if (d.f_uslugi) L.push(lp++ + ". Usługa serwisowa — robocizna" + (d.f_prace ? " (" + d.f_prace.split("\n")[0].slice(0, 60) + ")" : "") + " — " + d.f_uslugi + " zł");
+  (d.czesci || []).forEach(pt => {
+    if (!pt.n && !pt.nr) return;
+    L.push(lp++ + ". " + (pt.n || pt.nr) + (pt.nr && pt.n ? " (" + pt.nr + ")" : "") + " × " + (pt.il || "1") + (pt.c ? " — " + pt.c + " zł" : ""));
+  });
+  if (d.f_czesci_suma) L.push("   Razem części: " + d.f_czesci_suma + " zł");
+  L.push("");
+  L.push("RAZEM (" + rodzaj + "): " + (d.f_koszt || "—") + (netto ? "  (+ VAT 23%)" : ""));
+  return L.join("\n");
+}
+function fakturaPokaz(d) {
+  $("faktTxt").value = fakturaTekst(d);
+  $("faktModal").style.display = "block";
+}
+$("faktBtn").addEventListener("click", () => fakturaPokaz(getFormData()));
+$("faktClose").addEventListener("click", () => { $("faktModal").style.display = "none"; });
+$("faktKopiuj").addEventListener("click", async () => {
+  await copyText($("faktTxt").value);
+  toast("📋 Skopiowano — wklej w eSowie przy wystawianiu faktury");
+});
+$("faktShare").addEventListener("click", async () => {
+  const t = $("faktTxt").value;
+  if (navigator.share) { try { await navigator.share({ text: t }); return; } catch (e) {} }
+  await copyText(t);
+  toast("📋 Udostępnianie niedostępne — skopiowano do schowka");
 });
 
 /* ==================== GRAFIK WARSZTATU ==================== */
@@ -2877,6 +2977,8 @@ $("grafToday").addEventListener("click", () => { grafStart = grafMonday(new Date
 $("expBtn").addEventListener("click", () => {
   const list = loadAll();
   if (!list.length) { toast("Brak zleceń do wyeksportowania"); return; }
+  try { localStorage.setItem("asko_last_backup", String(Date.now())); } catch (e) {}
+  kopiaBaner();
   const blob = new Blob([JSON.stringify({ app: "ASKO_zlecenia", ver: 1, exportedAt: new Date().toISOString(), orders: list }, null, 1)],
     { type: "application/json" });
   const a = document.createElement("a");
@@ -2886,7 +2988,26 @@ $("expBtn").addEventListener("click", () => {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
   toast("⬇ Wyeksportowano " + list.length + " zleceń");
 });
+function undoImpPokaz() {
+  let jest = false;
+  try { jest = !!localStorage.getItem("asko_undo_import"); } catch (e) {}
+  const b = $("undoImpBtn");
+  if (b) b.style.display = jest ? "inline-block" : "none";
+}
+$("undoImpBtn").addEventListener("click", () => {
+  let kopia = null;
+  try { kopia = JSON.parse(localStorage.getItem("asko_undo_import") || "null"); } catch (e) {}
+  if (!kopia) { toast("Brak migawki sprzed importu"); return; }
+  if (!confirm("Przywrócić stan zleceń sprzed ostatniego importu (" + kopia.orders.length + " zleceń)?")) return;
+  saveAll(kopia.orders);
+  try { localStorage.removeItem("asko_undo_import"); } catch (e) {}
+  undoImpPokaz();
+  renderArch();
+  toast("↩ Przywrócono stan sprzed importu");
+});
 $("impInput").addEventListener("change", ev => {
+  try { localStorage.setItem("asko_undo_import", JSON.stringify({ ts: Date.now(), orders: loadAll() })); } catch (e) {}
+  undoImpPokaz();
   const file = ev.target.files[0];
   ev.target.value = "";
   if (!file) return;
@@ -3149,6 +3270,7 @@ function shareOrder(rec) {
   document.querySelectorAll(".car-outline").forEach(g => { g.innerHTML = CAR_OUTLINE; });
   renderDmg();
   applyRole();
+  try { undoImpPokaz(); } catch (e) {}
   if (!usrCurrent() && !/print=1/.test(location.hash || "")) lockShow();
   if (/[?&]r=\d+/.test(location.search)) {
     try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
