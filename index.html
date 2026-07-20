@@ -207,7 +207,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 87</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 90</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
@@ -351,6 +351,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
           <input type="text" id="f_termin" style="flex:1">
           <label style="position:relative;display:flex;align-items:center;justify-content:center;width:52px;border:1.5px solid var(--border);border-radius:10px;background:#fff;font-size:22px;cursor:pointer">📅
             <input type="date" id="f_termin_kal" style="position:absolute;inset:0;opacity:0;width:100%;height:100%">
+            <input type="hidden" id="f_graf_data">
           </label>
         </div>
       </div>
@@ -1887,7 +1888,7 @@ $("odbNow").addEventListener("click", () => {
 
 /* ==================== FORMULARZ ↔ DANE ==================== */
 const TXT_IDS = ["f_nr","f_data","f_godz","f_marka","f_model","f_wersja","f_rok","f_przebieg","f_rej","f_vin","f_datarej1","f_pojemnosc","f_moc","f_rodzpaliwa",
-                 "f_paliwo","f_klient","f_nip","f_adres","f_tel","f_stan","f_usterki","f_czas","f_uslugi","f_koszt","f_termin","w_klucz_szt",
+                 "f_paliwo","f_klient","f_nip","f_adres","f_tel","f_stan","f_usterki","f_czas","f_uslugi","f_koszt","f_termin","f_graf_data","w_klucz_szt",
                  "f_odb_data","f_odb_godz","f_prace","f_przyp_kiedy","f_przyp_txt"];
 const CHK_IDS = ["w_dowod","w_klucz","c_oryg","c_zam","c_uzyw","c_klient"];
 
@@ -2862,7 +2863,10 @@ function grafHours(txt) {
   return Math.min(Math.max(h, 0.5), 40);
 }
 function grafDzien(r) {
-  /* zlecenie pokazuje się nazajutrz po dniu przyjęcia */
+  /* własne przypisanie z grafiku ma pierwszeństwo */
+  const w = String((r.data || {}).f_graf_data || "").match(/^\d{4}-\d{2}-\d{2}$/);
+  if (w) return w[0];
+  /* domyślnie: nazajutrz po dniu przyjęcia */
   const m = String((r.data || {}).f_data || "").match(/(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return null;
   const d = new Date(+m[1], +m[2] - 1, +m[3] + 1);
@@ -2939,6 +2943,7 @@ function grafMenuPokaz(rec) {
     "</div>" +
     '<div style="display:flex;gap:8px;margin-top:10px">' +
     '<button type="button" class="abtn" id="grafMenuOpen" style="flex:2;background:var(--dark);color:#fff;padding:11px">📂 Otwórz zlecenie</button>' +
+    '<button type="button" class="abtn" id="grafMenuMove" style="flex:2;background:#e3f2fd;color:#1565c0;padding:11px">📅 Przenieś na dzień…</button>' +
     '<button type="button" class="abtn" id="grafMenuX" style="flex:1;padding:11px">Anuluj</button></div>';
   m.style.display = "block";
   m.querySelectorAll("[data-gstat]").forEach(b => b.addEventListener("click", () => {
@@ -2961,6 +2966,36 @@ function grafMenuPokaz(rec) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   m.querySelector("#grafMenuX").addEventListener("click", () => { m.style.display = "none"; });
+  m.querySelector("#grafMenuMove").addEventListener("click", () => {
+    const obecny = grafDzien(rec) || "";
+    const wlasny = !!(rec.data || {}).f_graf_data;
+    m.innerHTML = '<div style="font-weight:bold;font-size:15px;margin-bottom:8px">📅 ' + escHtml(d.f_rej || d.f_nr || "") + ' — na który dzień w grafiku?</div>' +
+      '<input type="date" id="grafMoveDate" value="' + obecny + '" style="width:100%;font-size:17px;padding:11px;border:1.5px solid var(--border);border-radius:10px;box-sizing:border-box">' +
+      '<div style="display:flex;gap:8px;margin-top:10px">' +
+      '<button type="button" class="abtn" id="grafMoveGo" style="flex:2;background:var(--dark);color:#fff;padding:11px">✔ Przenieś</button>' +
+      (wlasny ? '<button type="button" class="abtn" id="grafMoveReset" style="flex:2;padding:11px">↩ Domyślnie (przyjęcie+1)</button>' : "") +
+      '<button type="button" class="abtn" id="grafMoveX" style="flex:1;padding:11px">Anuluj</button></div>';
+    const zapiszDzien = (iso) => {
+      const list = loadAll(), rr = list.find(x => x.id === rec.id);
+      if (!rr) return;
+      if (iso) rr.data.f_graf_data = iso; else delete rr.data.f_graf_data;
+      histAdd(rr, iso ? "przeniesiono w grafiku na " + iso.split("-").reverse().join(".") : "przywrócono domyślny dzień w grafiku");
+      rr.updatedAt = new Date().toISOString();
+      saveAll(list); cloudPush(rr);
+      if (currentId === rec.id) { try { $("f_graf_data").value = iso || ""; } catch (e) {} }
+      m.style.display = "none";
+      renderGraf();
+      toast(iso ? "📅 " + (rr.data.f_rej || rr.data.f_nr || "") + " → " + iso.split("-").reverse().join(".") : "↩ Wrócono do reguły przyjęcie+1");
+    };
+    m.querySelector("#grafMoveGo").addEventListener("click", () => {
+      const v = m.querySelector("#grafMoveDate").value;
+      if (!v) { toast("Wybierz dzień z kalendarza"); return; }
+      zapiszDzien(v);
+    });
+    const rst = m.querySelector("#grafMoveReset");
+    if (rst) rst.addEventListener("click", () => zapiszDzien(""));
+    m.querySelector("#grafMoveX").addEventListener("click", () => { m.style.display = "none"; });
+  });
 }
 $("grafModal").addEventListener("click", ev => {
   if (ev.target.id === "grafModal") { $("grafModal").style.display = "none"; const m = $("grafMenu"); if (m) m.style.display = "none"; return; }
