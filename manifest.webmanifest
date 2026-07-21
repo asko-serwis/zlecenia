@@ -1,13 +1,16 @@
 {
   "name": "ASKO — Asystent zlecenia naprawy",
   "short_name": "ASKO",
+  "id": "./",
+  "lang": "pl",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
   "background_color": "#ececec",
   "theme_color": "#E07B00",
   "icons": [
-    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
