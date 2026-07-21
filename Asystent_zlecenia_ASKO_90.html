@@ -133,6 +133,10 @@ header.app{padding-top:calc(10px + env(safe-area-inset-top));position:sticky;top
 input[type=text],input[type=date],input[type=time],input[type=number],select,textarea{font-size:16px;-webkit-appearance:none;appearance:none}
 select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a5a5a'/%3E%3C/svg%3E") no-repeat right 12px center}
 .btn{-webkit-tap-highlight-color:transparent;touch-action:manipulation;min-height:44px}
+/* przyciski wyboru użytkownika na ekranie logowania */
+.lock-usr{display:block;width:100%;box-sizing:border-box;text-align:left;font-size:17px;font-weight:bold;padding:13px 16px;border-radius:10px;border:2px solid transparent;background:#fff;color:var(--dark);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;min-height:48px}
+.lock-usr.sel{border-color:var(--orange);background:#fff3e0;box-shadow:0 0 0 1px var(--orange) inset}
+.lock-usr.sel::after{content:" ✓";color:var(--orange);float:right;font-size:19px}
 .micbtn{min-height:38px;min-width:44px;-webkit-tap-highlight-color:transparent}
 .checks input{min-width:22px;min-height:22px}
 @media(max-width:640px){
@@ -498,7 +502,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <img id="lockLogo" src="" alt="ASKO" style="height:72px;background:#fff;border-radius:16px;padding:8px">
     <h2 style="color:#fff;margin:18px 0 4px">Asystent zlecenia ASKO</h2>
     <div style="color:#bbb;font-size:14px;margin-bottom:18px">Wybierz użytkownika i podaj PIN</div>
-    <select id="lockUser" style="width:100%;font-size:17px;padding:12px;border-radius:10px;border:none;margin-bottom:10px"></select>
+    <div id="lockUsers" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
     <input type="password" id="lockPin" inputmode="numeric" placeholder="PIN" style="width:100%;font-size:22px;letter-spacing:8px;text-align:center;padding:12px;border-radius:10px;border:none;box-sizing:border-box">
     <button type="button" id="lockGo" class="btn btn-orange" style="width:100%;margin-top:12px;font-size:18px">Wejdź</button>
     <div id="lockErr" style="color:#ff8a80;margin-top:10px;min-height:20px;font-weight:bold"></div>
@@ -2176,19 +2180,48 @@ function applyRole() {
 }
 function lockShow() {
   const u = usrAll();
-  $("lockUser").innerHTML = u.map((x, i) => '<option value="' + i + '">' + escHtml(x.i) + "</option>").join("");
+  /* Lista użytkowników jako duże przyciski — <select> z appearance:none
+     na części telefonów (Android WebView, iOS standalone) nie otwierał listy. */
+  let sel = 0;
+  try {
+    const last = localStorage.getItem("asko_last_user");
+    const li = u.findIndex(x => x.i === last);
+    if (li >= 0) sel = li;
+  } catch (e) {}
+  const box = $("lockUsers");
+  function paint() {
+    box.innerHTML = u.map((x, i) =>
+      '<button type="button" class="lock-usr' + (i === sel ? " sel" : "") + '" data-i="' + i + '">👤 ' + escHtml(x.i) +
+      (x.r === "admin" ? ' <span style="font-size:11px;opacity:.7">(pełne uprawnienia)</span>' : "") + "</button>").join("");
+  }
+  paint();
+  box.onclick = ev => {
+    const b = ev.target.closest("button[data-i]");
+    if (!b) return;
+    sel = +b.dataset.i;
+    paint();
+    $("lockErr").textContent = "";
+    $("lockPin").focus();
+  };
+  window.__lockSel = () => sel;
   try { $("lockLogo").src = $("logoImg").src; } catch (e) {}
   $("lockPin").value = ""; $("lockErr").textContent = "";
   $("lockModal").style.display = "block";
 }
 $("lockGo").addEventListener("click", () => {
-  const u = usrAll()[+$("lockUser").value];
-  if (!u || $("lockPin").value !== u.p) {
+  const idx = window.__lockSel ? window.__lockSel() : 0;
+  const u = usrAll()[idx];
+  if (!u) {
+    $("lockErr").textContent = "✖ Wybierz użytkownika z listy";
+    return;
+  }
+  if ($("lockPin").value !== u.p) {
     $("lockErr").textContent = "✖ Nieprawidłowy PIN";
     $("lockPin").value = ""; $("lockPin").focus();
     return;
   }
   try { localStorage.setItem(USR_SES, JSON.stringify({ i: u.i, r: u.r, exp: Date.now() + 12 * 3600 * 1000 })); } catch (e) {}
+  try { localStorage.setItem("asko_last_user", u.i); } catch (e) {}
   $("lockModal").style.display = "none";
   applyRole();
   toast("👤 Witaj, " + u.i + (u.r === "admin" ? " (pełne uprawnienia)" : ""));
