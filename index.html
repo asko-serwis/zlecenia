@@ -172,6 +172,12 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 .p-qty-wrap button{border:none;background:#efefef;font-size:20px;width:42px;cursor:pointer;color:#333;-webkit-tap-highlight-color:transparent}
 .p-qty-wrap input{border:none!important;width:100%;text-align:center;font-size:16px;min-width:0;background:#fff}
 body.role-prac .tylko-admin{display:none!important}
+.zgoda-pills{display:flex;flex-wrap:wrap;gap:8px}
+.zgoda-pills label{border:1.5px solid var(--border);border-radius:18px;padding:9px 15px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;background:#fff;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;color:#444}
+.zgoda-pills input{display:none}
+.zgoda-pills label.on{border-color:#2e7d32;background:#e8f5e9;color:#2e7d32;font-weight:bold}
+.zgoda-pills label.on::before{content:"✓"}
+.arch-extra{flex-basis:100%;display:none;gap:6px;flex-wrap:wrap}
 @media(min-width:641px){
   .part-row.otwarty .p-body{grid-template-columns:3fr 150px 2fr 150px;align-items:center}
   .p-body .p-name,.p-body .p-cat,.p-body .p-price{grid-column:auto}
@@ -228,7 +234,7 @@ body.role-prac .tylko-admin{display:none!important}
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 112</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 118</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
@@ -357,7 +363,7 @@ body.role-prac .tylko-admin{display:none!important}
 </div>
 
 <div class="card">
-  <h2><span class="num">6</span> OPIS USTEREK I ZAKRES PRAC</h2>
+  <h2><span class="num">6</span> USTERKI I PLAN NAPRAWY</h2>
   <div class="body">
     <div id="vehHist" style="display:none;background:#e3f2fd;border:1.5px solid #1565c0;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13.5px;line-height:1.6"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
@@ -365,8 +371,9 @@ body.role-prac .tylko-admin{display:none!important}
       <button type="button" class="micbtn" id="mic_usterki" title="Mikrofon wyłączy się sam po pauzie w mówieniu">🎤 Dyktuj</button>
     </div>
     <textarea id="f_usterki" rows="6" placeholder="Objawy zgłaszane przez klienta oraz zlecony zakres prac — wpisz lub podyktuj"></textarea>
-    <div style="margin-top:10px"><label class="f">⏱ Szacunkowy czas robocizny — tylko do użytku wewnętrznego, nie drukuje się (zasila grafik 🗓)</label><input type="text" id="f_czas" placeholder="np. 3–4 godziny / 2 dni"></div>
     <div class="grid g2" style="margin-top:10px">
+      <div><label class="f">⏱ Czas robocizny — wewnętrzny, zasila grafik 🗓</label>
+        <input type="text" id="f_czas" placeholder="np. 3–4 godziny / 2 dni"></div>
       <div><label class="f">Przewidywany termin wykonania</label>
         <div style="display:flex;gap:6px;align-items:stretch">
           <input type="text" id="f_termin" style="flex:1">
@@ -376,34 +383,21 @@ body.role-prac .tylko-admin{display:none!important}
           </label>
         </div>
       </div>
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-          <label class="f" style="margin:0">Cena usługi / robocizna (zł)</label>
-          <button type="button" class="micbtn" id="mic_koszt" title="Dyktuj">🎤</button>
-        </div>
-        <input type="text" id="f_uslugi" inputmode="decimal" placeholder="zł — wpisuje pracownik">
-      </div>
     </div>
-    <div class="grid g2" style="margin-top:10px">
-      <div><label class="f">Razem części (z tabeli, automatycznie)</label>
-        <input type="text" id="f_czesci_suma" readonly style="background:#f5f5f5" placeholder="—"></div>
-      <div><label class="f">Przewidywany koszt = usługa + części</label>
-        <input type="text" id="f_koszt" readonly style="background:#fff7ec;font-weight:bold" placeholder="wyliczy się sam"></div>
-    </div>
-    <div class="hint" id="nettoHint" style="display:none">ℹ️ Klient firmowy (podany NIP) — przewidywany koszt jest kwotą <b>netto</b>.</div>
-    <div class="sub" style="margin-top:10px"><b>Zgoda na zakup części:</b></div>
-    <div class="checks">
-      <label><input type="checkbox" id="c_oryg"> nowe oryginalne</label>
-      <label><input type="checkbox" id="c_zam"> nowe zamienniki</label>
-      <label><input type="checkbox" id="c_uzyw"> używane</label>
-      <label><input type="checkbox" id="c_klient"> dostarczone przez Zleceniodawcę</label>
-    </div>
+    <div id="terminObciazenie" style="display:none;margin-top:8px;border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.5"></div>
   </div>
 </div>
 
 <div class="card">
   <h2><span class="num">7</span> ZASTOSOWANE CZĘŚCI</h2>
   <div class="body">
+    <div class="sub" style="margin:0 0 5px"><b>Zgoda klienta na zakup części</b> — dotknij (można kilka):</div>
+    <div class="zgoda-pills" id="zgodaPills" style="margin-bottom:12px">
+      <label><input type="checkbox" id="c_oryg"> nowe oryginalne</label>
+      <label><input type="checkbox" id="c_zam"> nowe zamienniki</label>
+      <label><input type="checkbox" id="c_uzyw"> używane</label>
+      <label><input type="checkbox" id="c_klient"> dostarczone przez Zleceniodawcę</label>
+    </div>
     <div id="icVehBadge" style="display:none;background:#e8f5e9;border:1.5px solid #2e7d32;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:14px"></div>
     <div id="partsHist" style="display:none;background:#f1f8e9;border:1.5px solid #9ccc65;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:14px"></div>
     <div class="parts-head">
@@ -413,7 +407,21 @@ body.role-prac .tylko-admin{display:none!important}
     </div>
     <div id="partsList" class="parts-list"></div>
     <div id="partsSum" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:14px;line-height:1.7"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center">
+    <div class="grid g2" style="margin-top:12px">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <label class="f" style="margin:0">Cena usługi / robocizna (zł)</label>
+          <button type="button" class="micbtn" id="mic_koszt" title="Dyktuj">🎤</button>
+        </div>
+        <input type="text" id="f_uslugi" inputmode="decimal" placeholder="zł — wpisuje pracownik">
+      </div>
+      <div><label class="f">Razem części (automatycznie)</label>
+        <input type="text" id="f_czesci_suma" readonly style="background:#f5f5f5" placeholder="—"></div>
+    </div>
+    <div style="margin-top:8px"><label class="f">Przewidywany koszt = usługa + części</label>
+      <input type="text" id="f_koszt" readonly style="background:#fff7ec;font-weight:bold;font-size:18px" placeholder="wyliczy się sam"></div>
+    <div class="hint" id="nettoHint" style="display:none">ℹ️ Klient firmowy (podany NIP) — przewidywany koszt jest kwotą <b>netto</b>.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">
       <button type="button" class="abtn" id="quoteAllBtn" style="background:#e8f0fe;color:#174ea6;font-weight:bold">💶 Wyceń wszystkie (IC)</button>
       <button type="button" class="abtn" id="zamBtn" style="background:#fce4ec;color:#ad1457;font-weight:bold">🛒 Zamów w IC</button>
     </div>
@@ -527,7 +535,7 @@ body.role-prac .tylko-admin{display:none!important}
     <input type="password" id="lockPin" inputmode="numeric" placeholder="PIN" style="width:100%;font-size:22px;letter-spacing:8px;text-align:center;padding:12px;border-radius:10px;border:none;box-sizing:border-box">
     <button type="button" id="lockGo" class="btn btn-orange" style="width:100%;margin-top:12px;font-size:18px">Wejdź</button>
     <div id="lockErr" style="color:#ff8a80;margin-top:10px;min-height:20px;font-weight:bold"></div>
-    <div style="color:#888;font-size:11px;margin-top:14px">wersja 112</div>
+    <div style="color:#888;font-size:11px;margin-top:14px">wersja 118</div>
   </div>
 </div>
 <div id="usrModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;overflow:auto">
@@ -627,10 +635,14 @@ body.role-prac .tylko-admin{display:none!important}
     <div style="overflow-y:auto;padding:10px 12px;max-height:78vh">
 
     <div id="kopiaBaner" style="display:none;background:#fff3e0;border:1.5px solid var(--orange);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13.5px"></div>
+    <div id="archPuls" style="display:none;background:#f5f5f5;border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13.5px;line-height:1.6"></div>
     <div id="statusChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
     <div id="storWarn">⚠ Pamięć przeglądarki jest niedostępna (tryb prywatny lub podgląd) — zlecenia będą pamiętane tylko do zamknięcia strony. Otwórz aplikację w zwykłym oknie przeglądarki (Safari na iPhonie, Chrome na Androidzie).</div>
     <div class="grid g2">
-      <div><input type="text" id="archSearch" placeholder="Szukaj: nr, klient, rejestracja, VIN, telefon…"></div>
+      <div style="display:flex;gap:6px;align-items:stretch">
+        <input type="text" id="archSearch" placeholder="Szukaj: nr, klient, rejestracja, VIN, telefon…" style="flex:1">
+        <button type="button" class="micbtn" id="mic_arch" title="Podyktuj, czego szukasz" style="flex:0 0 auto">🎤</button>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="btn btn-grey" id="expBtn" style="flex:1">⬇ Kopia (JSON)</button>
         <button type="button" class="btn btn-grey" id="csvBtn" style="flex:1">📊 CSV (Excel)</button>
@@ -2198,6 +2210,7 @@ function setFormData(d) {
   sig1.set(d.podpis || "");
   sig2.set(d.podpis2 || "");
   renderParts(d.czesci || []);
+  try { zgodaSync(); } catch (e) {}
   currentFilmy = (d.filmy || []).slice();
   renderVids(null);
   currentDmg = (d.uszkodzenia || []).slice();
@@ -3118,7 +3131,70 @@ $("f_termin_kal").addEventListener("change", () => {
   $("f_termin").value = d + "." + m + "." + r;
   scheduleDraft();
   updateTodo();
+  pokazObciazenie();
 });
+/* ===== pigułki zgody na zakup części ===== */
+function zgodaSync() {
+  document.querySelectorAll("#zgodaPills label").forEach(l => {
+    const c = l.querySelector("input");
+    if (c) l.classList.toggle("on", c.checked);
+  });
+}
+$("zgodaPills").addEventListener("change", zgodaSync);
+zgodaSync();
+/* ===== podgląd obciążenia grafiku przy wyborze terminu =====
+   Liczy dokładnie tym samym mechanizmem co grafik (grafDzien + grafHours),
+   z pominięciem bieżącego zlecenia. */
+function terminIso() {
+  const k = ($("f_termin_kal").value || "").match(/^\d{4}-\d{2}-\d{2}$/);
+  if (k) return k[0];
+  const m = ($("f_termin").value || "").match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (m) return m[3] + "-" + String(m[2]).padStart(2, "0") + "-" + String(m[1]).padStart(2, "0");
+  return null;
+}
+function pokazObciazenie() {
+  const box = $("terminObciazenie");
+  if (!box) return;
+  const iso = terminIso();
+  if (!iso) { box.style.display = "none"; return; }
+  const wlasne = grafHours($("f_czas").value);
+  const sumaDnia = dz => loadAll()
+    .filter(r => r.id !== currentId && orderStatus(r) !== "wydane" && grafDzien(r) === dz)
+    .reduce((sm, r) => sm + grafHours((r.data || {}).f_czas), 0);
+  const zajete = sumaDnia(iso);
+  const razem = zajete + wlasne;
+  const dniN = ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"];
+  const dd = new Date(iso + "T12:00:00");
+  const nazwa = dniN[dd.getDay()] + " " + iso.split("-").reverse().join(".");
+  box.style.display = "block";
+  if (razem > 8) {
+    /* najbliższy luźniejszy dzień w ciągu 2 tygodni (bez niedziel) */
+    let prop = "";
+    for (let i = 1; i <= 14; i++) {
+      const nd = new Date(dd);
+      nd.setDate(nd.getDate() + i);
+      if (nd.getDay() === 0) continue;
+      const pp = n => String(n).padStart(2, "0");
+      const niso = nd.getFullYear() + "-" + pp(nd.getMonth() + 1) + "-" + pp(nd.getDate());
+      if (sumaDnia(niso) + wlasne <= 8) {
+        prop = dniN[nd.getDay()] + " " + niso.split("-").reverse().join(".") + " (zaplanowane " + sumaDnia(niso) + " h)";
+        break;
+      }
+    }
+    box.style.background = "#fff3e0"; box.style.border = "1.5px solid #ef9f27"; box.style.color = "#8a4b00";
+    box.innerHTML = "⚠ <b>" + escHtml(nazwa) + "</b>: w grafiku już <b>" + zajete + " h</b>" +
+      (wlasne ? " — z tym zleceniem ~<b>" + razem + " h</b>" : "") + "." +
+      (prop ? " Najbliższy luźniejszy dzień: <b>" + escHtml(prop) + "</b>." : "");
+  } else {
+    box.style.background = "#e8f5e9"; box.style.border = "1.5px solid #a5d6a7"; box.style.color = "#1b5e20";
+    box.innerHTML = "✓ <b>" + escHtml(nazwa) + "</b>: zaplanowane " + zajete + " h" +
+      (wlasne ? " + to zlecenie ~" + wlasne + " h" : "") + " — dzień ma zapas.";
+  }
+}
+["f_czas", "f_termin"].forEach(idp => $(idp).addEventListener("input", () => {
+  clearTimeout(window.__obcT);
+  window.__obcT = setTimeout(pokazObciazenie, 700);
+}));
 $("f_uslugi").addEventListener("blur", normalizeKoszt);
 $("f_uslugi").addEventListener("change", normalizeKoszt);
 $("saveBtn").addEventListener("click", () => saveOrder(false));
@@ -3216,6 +3292,7 @@ function renderArch() {
   const q = ($("archSearch").value || "").trim().toLowerCase();
   const list = loadAll().slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   renderStatusChips(list);
+  archPulsDnia(list);
   const el = $("archList");
   const match = r => {
     if (archFilter === "przyp") { if (!przypDue(r)) return false; }
@@ -3228,38 +3305,51 @@ function renderArch() {
     return qd.length >= 3 && String(d.f_tel || "").replace(/\D/g, "").includes(qd);
   };
   const rows = list.filter(match);
+  /* porcjowanie: pierwsze 30 pozycji, reszta na życzenie —
+     lista zostaje szybka także przy setkach zleceń w archiwum */
+  const sig = q + "|" + archFilter;
+  if (window.__archSig !== sig) { window.__archSig = sig; window.__archLimit = 30; }
+  if (!window.__archLimit) window.__archLimit = 30;
   if (!rows.length) {
     el.innerHTML = '<div class="arch-empty">' + (list.length ? "Brak zleceń pasujących do wyszukiwania." : "Brak zapisanych zleceń — wypełnij formularz i naciśnij „Zapisz zlecenie”.") + "</div>";
     return;
   }
-  el.innerHTML = rows.map(r => {
+  const widoczne = rows.slice(0, window.__archLimit);
+  el.innerHTML = widoczne.map(r => {
     const d = r.data || {};
     const auto = [d.f_marka, d.f_model].filter(Boolean).join(" ");
+    const st = orderStatus(r), m = STATUS_META[st];
+    const odebrane = !!(d.podpis2 || d.f_odb_data);
+    const przyp = przypDue(r);
+    /* jeden kontekstowy „następny krok" obok Otwórz i Drukuj — reszta pod ⋯ */
+    let glowny = "";
+    if (przyp && d.f_tel) glowny = '<button type="button" class="abtn" data-act="przypsms" style="background:#e3f2fd;color:#1565c0">📩 SMS</button>';
+    else if (przyp) glowny = '<button type="button" class="abtn" data-act="przypdone">✓ Załatwione</button>';
+    else if (st === "przyjete" || st === "czesci") glowny = '<button type="button" class="abtn" data-act="advance" style="background:#fff8e1;color:#a67c00">🔧 W naprawie</button>';
+    else if (st === "w_naprawie") glowny = '<button type="button" class="abtn" data-act="advance" style="background:#e8f5e9;color:#2e7d32">✅ Gotowe</button>';
+    else if (!odebrane) glowny = '<button type="button" class="abtn" data-act="odbior" style="background:#e8f5e9;color:#2e7d32">✅ Odbiór</button>';
+    const extra =
+      (st === "przyjete" || st === "w_naprawie" ? '<button type="button" class="abtn" data-act="czesci" style="background:#fff3e0;color:#e65100">⏳ Czekamy na części</button>' : "") +
+      (przyp && d.f_tel ? '<button type="button" class="abtn" data-act="przypdone">✓ Przypomnienie załatwione</button>' : "") +
+      (!odebrane && glowny.indexOf('data-act="odbior"') === -1 ? '<button type="button" class="abtn" data-act="odbior" style="background:#e8f5e9;color:#2e7d32">✅ Odbiór</button>' : "") +
+      (d.f_tel ? '<button type="button" class="abtn" data-act="tel" style="background:#e8f5e9;color:#2e7d32">📞 Zadzwoń</button>' : "") +
+      '<button type="button" class="abtn" data-act="copy">📄 Kopiuj jako nowe</button>' +
+      '<button type="button" class="abtn" data-act="faktura" style="background:#ede7f6;color:#4527a0">🧾 Faktura</button>' +
+      '<button type="button" class="abtn" data-act="share">📤 Udostępnij</button>' +
+      '<button type="button" class="abtn del" data-act="del">✖ Usuń</button>';
     return '<div class="arch-item" data-id="' + escHtml(r.id) + '">' +
       '<div class="row1"><b>' + escHtml(d.f_nr || "(bez numeru)") + '</b>' +
+      ' <span style="background:' + m[1] + ';color:' + m[2] + ';font-weight:bold;font-size:11.5px;border-radius:10px;padding:1px 9px">' + m[0] + "</span>" +
       '<span class="meta">' + escHtml(fmtDate(r)) + (d.f_klient ? " · " + escHtml(d.f_klient) : "") +
       (auto ? " · " + escHtml(auto) : "") + (d.f_rej ? " · " + escHtml(d.f_rej) : "") +
-      (d.podpis ? " · ✍ podpisane" : "") + "</span></div>" +
-      (function () {
-        const st = orderStatus(r), m = STATUS_META[st];
-        let s = '<div style="margin:4px 0"><span style="background:' + m[1] + ';color:' + m[2] + ';font-weight:bold;font-size:12px;border-radius:10px;padding:2px 10px">' + m[0] + "</span>";
-        if (przypDue(r)) s += ' <span style="background:#fff3e0;color:#e65100;font-weight:bold;font-size:12px;border-radius:10px;padding:2px 10px">🔔 ' + escHtml((d.przyp_txt || "przypomnienie")) + " — " + escHtml(d.przyp_data || "") + "</span>";
-        return s + "</div>";
-      })() +
+      (d.podpis ? " · ✍" : "") + "</span></div>" +
+      (przyp ? '<div style="margin:4px 0"><span style="background:#fff3e0;color:#e65100;font-weight:bold;font-size:12px;border-radius:10px;padding:2px 10px">🔔 ' + escHtml((d.przyp_txt || "przypomnienie")) + " — " + escHtml(d.przyp_data || "") + "</span></div>" : "") +
       '<div class="abtns">' +
       '<button type="button" class="abtn open" data-act="open">Otwórz</button>' +
-      (orderStatus(r) === "przyjete" || orderStatus(r) === "czesci" ? '<button type="button" class="abtn" data-act="advance" style="background:#fff8e1;color:#a67c00">🔧 W naprawie</button>' : "") +
-      (orderStatus(r) === "przyjete" || orderStatus(r) === "w_naprawie" ? '<button type="button" class="abtn" data-act="czesci" style="background:#fff3e0;color:#e65100">⏳ Części</button>' : "") +
-      (orderStatus(r) === "w_naprawie" ? '<button type="button" class="abtn" data-act="advance" style="background:#e8f5e9;color:#2e7d32">✅ Gotowe</button>' : "") +
-      (przypDue(r) && d.f_tel ? '<button type="button" class="abtn" data-act="przypsms" style="background:#e3f2fd;color:#1565c0">📩 SMS</button>' : "") +
-      (przypDue(r) ? '<button type="button" class="abtn" data-act="przypdone">✓ Załatwione</button>' : "") +
-      ((d.podpis2 || d.f_odb_data) ? '' : '<button type="button" class="abtn" data-act="odbior" style="background:#e8f5e9;color:#2e7d32">✅ Odbiór</button>') +
+      glowny +
       '<button type="button" class="abtn" data-act="print">Drukuj</button>' +
-      '<button type="button" class="abtn" data-act="copy">Kopiuj jako nowe</button>' +
-      (d.f_tel ? '<button type="button" class="abtn" data-act="tel" style="background:#e8f5e9;color:#2e7d32">📞 Zadzwoń</button>' : "") +
-      '<button type="button" class="abtn" data-act="faktura" style="background:#ede7f6;color:#4527a0">🧾 Faktura</button>' +
-      '<button type="button" class="abtn" data-act="share">Udostępnij</button>' +
-      '<button type="button" class="abtn del" data-act="del">Usuń</button>' +
+      '<button type="button" class="abtn" data-act="amore">⋯ Więcej</button>' +
+      '<div class="arch-extra">' + extra + "</div>" +
       "</div>" +
       ((r.hist && r.hist.length) ?
         '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px;color:var(--grey)">🕓 ' +
@@ -3267,12 +3357,103 @@ function renderArch() {
         '<div style="font-size:12.5px;color:var(--grey);line-height:1.7;margin-top:4px">' +
         r.hist.slice().reverse().map(h => escHtml(histFmt(h))).join("<br>") + "</div></details>" : "") +
       "</div>";
-  }).join("");
+  }).join("") + (rows.length > widoczne.length
+    ? '<div style="text-align:center;margin:10px 0"><button type="button" class="abtn" data-act="apokaz" style="padding:10px 22px">⬇ Pokaż starsze (jeszcze ' + (rows.length - widoczne.length) + ")</button></div>"
+    : "");
 }
+/* puls dnia: szybki obraz warsztatu nad listą (kwota tylko dla pełnych uprawnień) */
+function archPulsDnia(list) {
+  const box = $("archPuls");
+  if (!box) return;
+  const dzis = new Date().toISOString().slice(0, 10);
+  let przyjete = 0, wydane = 0, wWarsztacie = 0, utarg = 0, zysk = 0, zakupIC = 0, bezZakupu = false;
+  list.forEach(r => {
+    const d = r.data || {};
+    if (d.f_data === dzis) przyjete++;
+    if (d.f_odb_data === dzis) {
+      wydane++;
+      utarg += plnParse(d.f_koszt);
+      /* zysk = robocizna + (cena dla klienta − zakup brutto) per część;
+         części bez zapisanej wyceny IC liczone ostrożnie: bez marży */
+      zysk += plnParse(d.f_uslugi);
+      (d.czesci || []).forEach(pt => {
+        if (!pt) return;
+        if (pt.zn > 0) { zysk += plnParse(pt.c) - pt.zn * 1.23; zakupIC += pt.zn; }
+        else if (plnParse(pt.c) > 0) bezZakupu = true;
+      });
+    }
+    if (orderStatus(r) !== "wydane") wWarsztacie++;
+  });
+  if (!list.length) { box.style.display = "none"; return; }
+  box.style.display = "block";
+  /* podsumowanie miesiąca: samo rozwija się ostatniego dnia miesiąca,
+     w pozostałe dni dostępne pod przyciskiem 📅 */
+  const teraz = new Date();
+  const jutro = new Date(teraz); jutro.setDate(teraz.getDate() + 1);
+  const ostatniDzien = jutro.getDate() === 1;
+  const pokazMies = ostatniDzien || !!window.__pulsMies;
+  let mies = "";
+  if (pokazMies) {
+    const ym = dzis.slice(0, 7);
+    const MIES = ["styczeń","luty","marzec","kwiecień","maj","czerwiec","lipiec","sierpień","wrzesień","październik","listopad","grudzień"];
+    let mp = 0, mw = 0, mu = 0, mz = 0, mic = 0, mbez = false;
+    list.forEach(r => {
+      const d = r.data || {};
+      if ((d.f_data || "").slice(0, 7) === ym) mp++;
+      if ((d.f_odb_data || "").slice(0, 7) === ym) {
+        mw++;
+        mu += plnParse(d.f_koszt);
+        mz += plnParse(d.f_uslugi);
+        (d.czesci || []).forEach(pt => {
+          if (!pt) return;
+          if (pt.zn > 0) { mz += plnParse(pt.c) - pt.zn * 1.23; mic += pt.zn; }
+          else if (plnParse(pt.c) > 0) mbez = true;
+        });
+      }
+    });
+    mies = '<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px">' +
+      "📅 <b>Podsumowanie miesiąca (" + MIES[teraz.getMonth()] + " " + teraz.getFullYear() + ")" +
+      (ostatniDzien ? " — ostatni dzień!" : "") + ":</b><br>" +
+      "przyjęte <b>" + mp + "</b> · wydane <b>" + mw + "</b>" +
+      '<span class="tylko-admin"> · 💰 utarg <b>' + plnFmt(mu) + "</b> · zysk " + (mbez ? "≥" : "") + "<b>" + plnFmt(Math.max(0, mz)) + "</b>" +
+      "<br>🧾 za części do Inter Cars: <b>" + plnFmt(mic) + " netto</b> / " + plnFmt(mic * 1.23) + " brutto</span></div>";
+  }
+  box.innerHTML = "📊 <b>Dziś:</b> przyjęte <b>" + przyjete + "</b> · wydane <b>" + wydane + "</b>" +
+    " · w warsztacie <b>" + wWarsztacie + "</b> " + (wWarsztacie === 1 ? "auto" : "aut") +
+    (utarg > 0 ? '<span class="tylko-admin" style="color:#2e7d32"> · 💰 utarg <b>' + plnFmt(utarg) + "</b>" +
+      " · zysk " + (bezZakupu ? "≥" : "") + "<b>" + plnFmt(Math.max(0, zysk)) + "</b>" +
+      (bezZakupu ? ' <span style="color:#888;font-weight:normal">(część pozycji bez wyceny IC — marża nieznana)</span>' : "") +
+      "</span>" : "") +
+    (zakupIC > 0 ? '<span class="tylko-admin" style="color:#ad5700"><br>🧾 Za części do Inter Cars (zlecenia wydane dziś): <b>' +
+      plnFmt(zakupIC) + " netto</b> / " + plnFmt(zakupIC * 1.23) + " brutto</span>" : "") +
+    ' <button type="button" id="pulsMies" class="abtn" style="padding:2px 10px;font-size:12px;margin-left:6px">📅 ' +
+    (pokazMies ? "zwiń miesiąc" : "miesiąc") + "</button>" + mies;
+}
+/* przełącznik podsumowania miesięcznego (delegacja — treść pulsu jest przebudowywana) */
+$("archPuls").addEventListener("click", ev => {
+  if (!ev.target.closest("#pulsMies")) return;
+  window.__pulsMies = !window.__pulsMies;
+  renderArch();
+});
 $("archSearch").addEventListener("input", renderArch);
+$("mic_arch").addEventListener("click", () => {
+  dictate($("archSearch"), { mode: "replace", btn: $("mic_arch"), onDone: () => renderArch() });
+});
 $("archList").addEventListener("click", ev => {
   const btn = ev.target.closest("button[data-act]");
   if (!btn) return;
+  if (btn.dataset.act === "apokaz") {
+    window.__archLimit = (window.__archLimit || 30) + 50;
+    renderArch();
+    return;
+  }
+  if (btn.dataset.act === "amore") {
+    const ex = btn.parentElement.querySelector(".arch-extra");
+    const on = ex.style.display !== "flex";
+    ex.style.display = on ? "flex" : "none";
+    btn.textContent = on ? "⋯ Mniej" : "⋯ Więcej";
+    return;
+  }
   const id = btn.closest(".arch-item").dataset.id;
   const list = loadAll();
   const rec = list.find(r => r.id === id);
@@ -3875,12 +4056,22 @@ $("micParts").addEventListener("click", () => {
 });
 /* ---------- szybkie szukanie w Inter Cars bez wychodzenia z aplikacji ---------- */
 function getParts() {
-  return Array.from(document.querySelectorAll("#partsList .part-row")).map(row => ({
-    n: row.querySelector(".p-name").value.trim(),
-    il: row.querySelector(".p-qty").value.trim(),
-    nr: row.querySelector(".p-cat").value.trim(),
-    c: row.querySelector(".p-price").value.trim(),
-  })).filter(pt => pt.n || pt.il || pt.nr || pt.c);
+  return Array.from(document.querySelectorAll("#partsList .part-row")).map(row => {
+    const pt = {
+      n: row.querySelector(".p-name").value.trim(),
+      il: row.querySelector(".p-qty").value.trim(),
+      nr: row.querySelector(".p-cat").value.trim(),
+      c: row.querySelector(".p-price").value.trim(),
+    };
+    /* koszt zakupu (netto, razem za ilość) z wyceny IC — zapisywany w zleceniu,
+       żeby zysk dało się policzyć także z archiwum, nie tylko na żywo */
+    const it = row.__icItem;
+    if (it && it.price && it.price.customerPriceNet != null) {
+      const q = parseInt((row.querySelector(".p-qty").value || "1"), 10) || 1;
+      pt.zn = Math.round(it.price.customerPriceNet * q * 100) / 100;
+    }
+    return pt;
+  }).filter(pt => pt.n || pt.il || pt.nr || pt.c);
 }
 function addPartRow(pt, focusIt) {
   $("partsList").insertAdjacentHTML("beforeend", partRowHtml(pt));
