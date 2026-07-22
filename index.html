@@ -216,7 +216,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 100</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 101</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
@@ -520,7 +520,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <input type="password" id="lockPin" inputmode="numeric" placeholder="PIN" style="width:100%;font-size:22px;letter-spacing:8px;text-align:center;padding:12px;border-radius:10px;border:none;box-sizing:border-box">
     <button type="button" id="lockGo" class="btn btn-orange" style="width:100%;margin-top:12px;font-size:18px">Wejdź</button>
     <div id="lockErr" style="color:#ff8a80;margin-top:10px;min-height:20px;font-weight:bold"></div>
-    <div style="color:#888;font-size:11px;margin-top:14px">wersja 100</div>
+    <div style="color:#888;font-size:11px;margin-top:14px">wersja 101</div>
   </div>
 </div>
 <div id="usrModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;overflow:auto">
@@ -1675,8 +1675,20 @@ function printDoc() {
   let saved = null;
   try { saved = saveOrder(true); } catch (e) {}
   if (!saved) {
-    toast("❗ Wydruk wstrzymany — uzupełnij wymagane pola oznaczone ❗");
-    return;
+    let braki = [];
+    try { braki = checkRequired().map(id => TODO_NAMES[id] || id); } catch (e) {}
+    const msg = braki.length
+      ? "❗ Wydruk wstrzymany — uzupełnij: " + braki.join(", ")
+      : "❗ Wydruk wstrzymany — uzupełnij wymagane pola oznaczone ❗";
+    toast(msg);
+    /* w oknie wydruku toast bywa zasłonięty paskiem — pokaż powód NA pasku */
+    const pn = document.getElementById("printNow");
+    if (pn) {
+      pn.style.background = "#b71c1c";
+      pn.textContent = msg;
+      setTimeout(() => { pn.style.background = "var(--orange)"; pn.textContent = "🖨 DOTKNIJ, ABY WYDRUKOWAĆ"; }, 6000);
+    }
+    return false;
   }
   $("p_nr").textContent = txt($("f_nr").value);
   $("p_data").textContent = $("f_data").value ? $("f_data").value.split("-").reverse().join(".") : "";
@@ -1765,7 +1777,13 @@ function printDoc() {
   const sigImg2 = document.getElementById("p_podpis2");
   if (!sig2.isEmpty()) { sigImg2.src = sig2.toTrimmedDataURL(); sigImg2.style.display = "block"; }
   else { sigImg2.style.display = "none"; }
-  window.print();
+  try {
+    window.print();
+  } catch (e) {
+    toast("✖ Nie udało się otworzyć okna drukowania: " + (e.message || e));
+    return false;
+  }
+  return true;
 }
 
 /* ==================== DYKTOWANIE ==================== */
@@ -2560,6 +2578,14 @@ function openFromHash() {
     if (mp) {
       try { rec = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(mp[1]))))); } catch (e) {}
       if (rec && rec.id !== m[1]) rec = null;
+      /* zapisz do lokalnej listy tego okna — zapis przy druku zaktualizuje
+         to samo zlecenie (po id) zamiast tworzyć duplikat w chmurze */
+      if (rec) {
+        try {
+          const l = loadAll();
+          if (!l.find(r => r.id === rec.id)) { l.push(rec); saveAll(l); }
+        } catch (e) {}
+      }
     }
   }
   if (!rec) {
@@ -2607,10 +2633,19 @@ function openFromHash() {
         setTimeout(barOff, 300); /* gdy Safari nie pozwoli zamknąć — pasek znika, okno zamyka się przyciskiem „Gotowe” u góry */
       });
     };
-    document.getElementById("printNow").addEventListener("click", () => printDoc());
+    document.getElementById("printNow").addEventListener("click", () => {
+      const ok = printDoc();
+      if (ok) {
+        /* gdyby iOS mimo gestu nie pokazał okna druku — droga awaryjna zawsze działa */
+        const info = document.querySelector("#printBar div");
+        if (info) info.innerHTML = "Okno druku się nie pojawiło? Dotknij <b>Udostępnij</b> (kwadrat ze strzałką) → <b>Drukuj</b> — wydruk wyjdzie identyczny.";
+      }
+    });
     document.getElementById("printBarX").addEventListener("click", barOff);
     window.addEventListener("afterprint", () => setTimeout(barGotowe, 400));
-    setTimeout(printDoc, 900);
+    /* Bez automatycznej próby druku: iOS i tak blokuje window.print() bez gestu,
+       a jej skutki uboczne (zapis, przewinięcia, toasty) tylko mieszały. Druk
+       wyłącznie z dotknięcia pomarańczowego paska. */
   } else {
     toast("📷 Otwarto zlecenie " + (rec.data.f_nr || "") + " z kodu QR");
   }
@@ -3107,8 +3142,22 @@ $("archList").addEventListener("click", ev => {
     toast("Odbiór — poproś klienta o podpis, potem „Zapisz” i wydrukuj");
     setTimeout(() => $("odbCard").scrollIntoView({ behavior: "smooth" }), 150);
   } else if (act === "print") {
-    setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
-    setTimeout(doPrint, 250);
+    if (IS_IOS && navigator.standalone === true) {
+      /* okno Safari MUSI otworzyć się w tym samym geście dotknięcia —
+         opóźnienie 250 ms bywało cicho blokowane przez iOS. Dane zlecenia
+         idą prosto z rekordu w adresie, bez czekania na formularz. */
+      setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
+      let pd = "";
+      try {
+        const payload = btoa(unescape(encodeURIComponent(JSON.stringify(rec))));
+        if (payload.length < 60000) pd = "&pd=" + encodeURIComponent(payload);
+      } catch (e) {}
+      toast("Otwieram wydruk w Safari…");
+      window.open(location.origin + location.pathname + "#z=" + rec.id + "&print=1" + pd, "_blank");
+    } else {
+      setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
+      setTimeout(doPrint, 250);
+    }
   } else if (act === "copy") {
     const d = Object.assign({}, rec.data);
     d.podpis = "";
