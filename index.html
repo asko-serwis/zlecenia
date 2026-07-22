@@ -234,7 +234,7 @@ body.role-prac .tylko-admin{display:none!important}
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 118</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 119</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
@@ -535,7 +535,7 @@ body.role-prac .tylko-admin{display:none!important}
     <input type="password" id="lockPin" inputmode="numeric" placeholder="PIN" style="width:100%;font-size:22px;letter-spacing:8px;text-align:center;padding:12px;border-radius:10px;border:none;box-sizing:border-box">
     <button type="button" id="lockGo" class="btn btn-orange" style="width:100%;margin-top:12px;font-size:18px">Wejdź</button>
     <div id="lockErr" style="color:#ff8a80;margin-top:10px;min-height:20px;font-weight:bold"></div>
-    <div style="color:#888;font-size:11px;margin-top:14px">wersja 118</div>
+    <div style="color:#888;font-size:11px;margin-top:14px">wersja 119</div>
   </div>
 </div>
 <div id="usrModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;overflow:auto">
@@ -3340,7 +3340,8 @@ function renderArch() {
     return '<div class="arch-item" data-id="' + escHtml(r.id) + '">' +
       '<div class="row1"><b>' + escHtml(d.f_nr || "(bez numeru)") + '</b>' +
       ' <span style="background:' + m[1] + ';color:' + m[2] + ';font-weight:bold;font-size:11.5px;border-radius:10px;padding:1px 9px">' + m[0] + "</span>" +
-      '<span class="meta">' + escHtml(fmtDate(r)) + (d.f_klient ? " · " + escHtml(d.f_klient) : "") +
+      '<span class="meta">' + escHtml(fmtDate(r)) +
+      (d.f_klient ? ' · <b style="color:#1f1f1f">' + escHtml(d.f_klient) + "</b>" : "") +
       (auto ? " · " + escHtml(auto) : "") + (d.f_rej ? " · " + escHtml(d.f_rej) : "") +
       (d.podpis ? " · ✍" : "") + "</span></div>" +
       (przyp ? '<div style="margin:4px 0"><span style="background:#fff3e0;color:#e65100;font-weight:bold;font-size:12px;border-radius:10px;padding:2px 10px">🔔 ' + escHtml((d.przyp_txt || "przypomnienie")) + " — " + escHtml(d.przyp_data || "") + "</span></div>" : "") +
