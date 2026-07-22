@@ -228,7 +228,7 @@ body.role-prac .tylko-admin{display:none!important}
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 110</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 112</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
@@ -527,7 +527,7 @@ body.role-prac .tylko-admin{display:none!important}
     <input type="password" id="lockPin" inputmode="numeric" placeholder="PIN" style="width:100%;font-size:22px;letter-spacing:8px;text-align:center;padding:12px;border-radius:10px;border:none;box-sizing:border-box">
     <button type="button" id="lockGo" class="btn btn-orange" style="width:100%;margin-top:12px;font-size:18px">Wejdź</button>
     <div id="lockErr" style="color:#ff8a80;margin-top:10px;min-height:20px;font-weight:bold"></div>
-    <div style="color:#888;font-size:11px;margin-top:14px">wersja 110</div>
+    <div style="color:#888;font-size:11px;margin-top:14px">wersja 112</div>
   </div>
 </div>
 <div id="usrModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;overflow:auto">
@@ -2344,6 +2344,7 @@ async function startCloudSync() {
       if ((d.ts || 0) > localTs) {
         localStorage.setItem(USR_KEY, JSON.stringify(d.users));
         localStorage.setItem("asko_users_ts", String(d.ts || Date.now()));
+        usrMigrujPiny(); /* stary telefon mógł przysłać jawne PIN-y */
         /* jeśli ekran logowania jest otwarty — odśwież listę, zachowując wpisany PIN */
         if ($("lockModal").style.display === "block") {
           const pinVal = $("lockPin").value;
@@ -2388,11 +2389,24 @@ async function startCloudSync() {
   } catch (e) {}
   /* nasłuch w czasie rzeczywistym: chmura -> to urządzenie */
   CLOUD.unsub = col.onSnapshot(snap => {
-    const list = [];
-    snap.forEach(dc => { const r = dc.data(); if (!r.deleted) list.push(r); });
-    saveAll(list);
+    /* przyrostowo: tylko zmienione dokumenty, nie cała kolekcja —
+       mniej pracy przy każdej zmianie i zachowane rekordy lokalne */
+    const zmiany = snap.docChanges();
+    if (!zmiany.length) return;
+    const map = {};
+    loadAll().forEach(r => { if (r && r.id) map[r.id] = r; });
+    let zdalnaEdycja = false;
+    zmiany.forEach(ch => {
+      const r = ch.doc.data();
+      if (!r || !r.id) return;
+      if (ch.type === "removed" || r.deleted) { delete map[r.id]; return; }
+      map[r.id] = r;
+      if (r.id === currentId && ch.type === "modified" && !ch.doc.metadata.hasPendingWrites) zdalnaEdycja = true;
+    });
+    saveAll(Object.values(map));
     renderArch();
     openFromHash();
+    if (zdalnaEdycja) toast("⚠ Otwarte zlecenie zmieniło się właśnie na innym urządzeniu — Twój kolejny zapis nadpisze tamte zmiany");
   }, e => toast("☁ Błąd nasłuchu: " + (e.code || e.message)));
 }
 $("reloadBtn").addEventListener("click", () => {
@@ -2404,6 +2418,23 @@ $("reloadBtn").addEventListener("click", () => {
 });
 /* ==================== UŻYTKOWNICY / PIN / ROLE ==================== */
 const USR_KEY = "asko_users", USR_SES = "asko_login";
+/* PIN-y trzymamy wyłącznie jako skróty SHA-256 (z solą aplikacji) —
+   ani telefon, ani chmura nie znają PIN-ów w postaci jawnej. */
+async function pinHash(pin) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("asko|" + String(pin)));
+  return Array.from(new Uint8Array(buf)).map(x => x.toString(16).padStart(2, "0")).join("");
+}
+function jestHashPin(p) { return /^[0-9a-f]{64}$/.test(p || ""); }
+/* migracja: jawne PIN-y (stare wersje) zamieniane na skróty przy starcie
+   i przy każdej liście przychodzącej z chmury */
+async function usrMigrujPiny() {
+  try {
+    const u = usrAll();
+    let zmiana = false;
+    for (const x of u) if (x && x.p && !jestHashPin(x.p)) { x.p = await pinHash(x.p); zmiana = true; }
+    if (zmiana) usrSave(u);
+  } catch (e) {}
+}
 function usrAll() {
   try { const u = JSON.parse(localStorage.getItem(USR_KEY) || "null"); if (u && u.length) return u; } catch (e) {}
   return [{ i: "Szef", p: "2580", r: "admin" }];
@@ -2466,14 +2497,22 @@ function lockShow() {
   $("lockPin").value = ""; $("lockErr").textContent = "";
   $("lockModal").style.display = "block";
 }
-$("lockGo").addEventListener("click", () => {
+$("lockGo").addEventListener("click", async () => {
   const idx = window.__lockSel ? window.__lockSel() : 0;
   const u = usrAll()[idx];
   if (!u) {
     $("lockErr").textContent = "✖ Wybierz użytkownika z listy";
     return;
   }
-  if ($("lockPin").value !== u.p) {
+  const wpisany = $("lockPin").value;
+  let zgodny = false;
+  try {
+    zgodny = jestHashPin(u.p) ? (await pinHash(wpisany)) === u.p : wpisany === u.p;
+  } catch (e) {
+    $("lockErr").textContent = "✖ Logowanie wymaga bezpiecznego połączenia (https)";
+    return;
+  }
+  if (!zgodny) {
     $("lockErr").textContent = "✖ Nieprawidłowy PIN";
     $("lockPin").value = ""; $("lockPin").focus();
     return;
@@ -2483,6 +2522,12 @@ $("lockGo").addEventListener("click", () => {
   $("lockModal").style.display = "none";
   applyRole();
   toast("👤 Witaj, " + u.i + (u.r === "admin" ? " (pełne uprawnienia)" : ""));
+  /* fabryczny PIN 2580 = otwarta furtka opisana w publicznej dokumentacji */
+  try {
+    if ((await pinHash("2580")) === (jestHashPin(u.p) ? u.p : await pinHash(u.p))) {
+      toast("⚠ Używasz domyślnego PIN-u — zmień go: 👥 → ✏ Edytuj");
+    }
+  } catch (e) {}
 });
 $("lockPin").addEventListener("keydown", e => { if (e.key === "Enter") $("lockGo").click(); });
 let usrEditIdx = null;
@@ -2502,7 +2547,8 @@ $("usrList").addEventListener("click", ev => {
     const u = usrAll()[+be.dataset.usredit];
     usrEditIdx = +be.dataset.usredit;
     $("usrImie").value = u.i;
-    $("usrPin").value = u.p;
+    $("usrPin").value = "";
+    $("usrPin").placeholder = "nowy PIN (puste = bez zmiany)";
     $("usrAdmin").checked = u.r === "admin";
     $("usrAdd").textContent = "💾 Zapisz zmiany (" + u.i + ")";
     return;
@@ -2514,19 +2560,23 @@ $("usrList").addEventListener("click", ev => {
   u.splice(+b.dataset.usrdel, 1);
   usrSave(u); usrRender();
 });
-$("usrAdd").addEventListener("click", () => {
+$("usrAdd").addEventListener("click", async () => {
   const imie = ($("usrImie").value || "").trim();
   const pin = ($("usrPin").value || "").trim();
-  if (!imie || !/^\d{4,6}$/.test(pin)) { toast("Podaj imię i PIN złożony z 4-6 cyfr"); return; }
   const u = usrAll();
-  if (usrEditIdx !== null && u[usrEditIdx]) {
+  const edycja = usrEditIdx !== null && u[usrEditIdx];
+  if (!imie) { toast("Podaj imię"); return; }
+  if (!edycja || pin) {
+    if (!/^\d{4,6}$/.test(pin)) { toast("Podaj PIN złożony z 4-6 cyfr" + (edycja ? " (albo zostaw puste pole, by nie zmieniać)" : "")); return; }
+  }
+  if (edycja) {
     const stary = u[usrEditIdx].i;
-    u[usrEditIdx] = { i: imie, p: pin, r: $("usrAdmin").checked ? "admin" : "prac" };
+    u[usrEditIdx] = { i: imie, p: pin ? await pinHash(pin) : u[usrEditIdx].p, r: $("usrAdmin").checked ? "admin" : "prac" };
     usrSave(u); usrRender();
     toast("💾 Zapisano zmiany: " + stary + (stary !== imie ? " → " + imie : ""));
     return;
   }
-  u.push({ i: imie, p: pin, r: $("usrAdmin").checked ? "admin" : "prac" });
+  u.push({ i: imie, p: await pinHash(pin), r: $("usrAdmin").checked ? "admin" : "prac" });
   usrSave(u); usrRender();
   toast("👤 Dodano: " + imie);
 });
@@ -2595,7 +2645,19 @@ async function drukujPdf() {
     trybWydrukuCss(true);
     el.style.width = "740px";
     await new Promise(r => setTimeout(r, 350)); /* przełożenie układu + podpisy */
-    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", logging: false });
+    const canvas = await html2canvas(el, {
+      scale: 2, backgroundColor: "#ffffff", logging: false, windowWidth: 820,
+      /* html2canvas rysuje KLON strony i czyta style ze źródłowego CSS,
+         więc podmiana @media print na żywo go nie dotyczy — widoczność
+         dokumentu wydruku wymuszamy w klonie stylem inline */
+      onclone: dok => {
+        const pd = dok.getElementById("printDoc");
+        if (pd) { pd.style.display = "block"; pd.style.width = "740px"; }
+        const ui = dok.querySelector(".app-ui");
+        if (ui) ui.style.display = "none";
+      }
+    });
+    if (canvas.width < 100 || canvas.height < 200) throw new Error("podgląd wydruku wyszedł pusty — spróbuj ponownie");
     /* strona A4 z marginesami jak na wydruku: 186×274 mm treści */
     const mmSzer = 186, mmWys = 274, mX = 12, mY = 10;
     const pxNaMm = canvas.width / mmSzer;
@@ -2676,44 +2738,8 @@ function openFromHash() {
   if (hashOpened) return;
   const m = (location.hash || "").match(/z=([\w]+)/);
   if (!m) { hashOpened = true; return; }
-  let rec = loadAll().find(r => r.id === m[1]);
-  /* dane w adresie (okno wydruku z aplikacji standalone na iOS) —
-     działają nawet gdy Safari nie zna tego zlecenia */
-  if (!rec) {
-    const mp = (location.hash || "").match(/pd=([^&]+)/);
-    if (mp) {
-      try { rec = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(mp[1]))))); } catch (e) {}
-      if (rec && rec.id !== m[1]) rec = null;
-      /* zapisz do lokalnej listy tego okna — zapis przy druku zaktualizuje
-         to samo zlecenie (po id) zamiast tworzyć duplikat w chmurze */
-      if (rec) {
-        try {
-          const l = loadAll();
-          if (!l.find(r => r.id === rec.id)) { l.push(rec); saveAll(l); }
-        } catch (e) {}
-      }
-    }
-  }
-  if (!rec) {
-    /* może dojść z chmury — spróbujemy ponownie po synchronizacji,
-       a po 6 s pokazujemy wyjaśnienie zamiast pustego ekranu */
-    if (/print=1/.test(location.hash || "") && !window.__printWaitBar) {
-      window.__printWaitBar = setTimeout(() => {
-        if (hashOpened || document.getElementById("printWait")) return;
-        const w = document.createElement("div");
-        w.id = "printWait";
-        w.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:#b71c1c;color:#fff;padding:14px;z-index:56;text-align:center;font-size:15px";
-        w.innerHTML = "✖ Nie mogę pobrać tego zlecenia do wydruku w Safari.<br>" +
-          "Zaloguj Safari do chmury (☁ w aplikacji otwartej w Safari) i spróbuj ponownie, " +
-          "albo zaktualizuj aplikację do najnowszej wersji — wtedy wydruk zadziała bez chmury." +
-          '<div style="margin-top:8px"><button type="button" onclick="this.closest(\'#printWait\').remove()" style="border:none;border-radius:10px;background:#fff;color:#b71c1c;font-weight:bold;padding:10px 22px;cursor:pointer">OK</button></div>';
-        document.body.appendChild(w);
-      }, 6000);
-    }
-    return;
-  }
-  if (window.__printWaitBar) { clearTimeout(window.__printWaitBar); window.__printWaitBar = null; }
-  const pw = document.getElementById("printWait"); if (pw) pw.remove();
+  const rec = loadAll().find(r => r.id === m[1]);
+  if (!rec) return; /* może dojść z chmury — nasłuch ponowi otwarcie */
   hashOpened = true;
   const wantPrint = /print=1/.test(location.hash || "");
   setFormData(rec.data);
@@ -2846,7 +2872,7 @@ let currentFilmy = [];
 function renderVids(d) {
   const arr = (d && d.filmy) || currentFilmy || [];
   $("vidList").innerHTML = arr.length ? arr.map((v, i) =>
-    '<div>🎬 <a href="' + escHtml(v.url) + '" target="_blank" rel="noopener">Film ' + (i + 1) + '</a>' +
+    '<div>🎬 ' + (/^https:\/\//.test(v.url || "") ? '<a href="' + escHtml(v.url) + '" target="_blank" rel="noopener">Film ' + (i + 1) + '</a>' : 'Film ' + (i + 1) + ' (nieprawidłowy adres)') +
     ' <span class="hint">(' + new Date(v.ts).toLocaleString("pl-PL") + ", " + Math.round(v.size / 1048576) + ' MB)</span>' +
     ' <button type="button" class="abtn del" data-vdel="' + i + '">✖</button></div>').join("") : "";
 }
@@ -3112,7 +3138,7 @@ function renderTopList() {
   $("archModalList").innerHTML = list.length ? list.map(r => {
     const d = r.data || {};
     const status = (d.podpis2 || d.f_odb_data) ? " · ✅ odebrane" : (d.podpis ? " · ✍ przyjęte" : "");
-    return '<div class="arch-item mrow" data-id="' + r.id + '">' +
+    return '<div class="arch-item mrow" data-id="' + escHtml(r.id) + '">' +
       '<div class="row1"><b>' + escHtml(d.f_klient || "(bez nazwiska)") + '</b>' +
       '<span class="meta" style="font-weight:bold;color:var(--dark);font-size:14px">' + escHtml(d.f_rej || "—") + '</span></div>' +
       '<div class="meta">' + escHtml(d.f_nr || "") + ' · ' + escHtml(fmtDate(r)) + status + '</div></div>';
@@ -3209,7 +3235,7 @@ function renderArch() {
   el.innerHTML = rows.map(r => {
     const d = r.data || {};
     const auto = [d.f_marka, d.f_model].filter(Boolean).join(" ");
-    return '<div class="arch-item" data-id="' + r.id + '">' +
+    return '<div class="arch-item" data-id="' + escHtml(r.id) + '">' +
       '<div class="row1"><b>' + escHtml(d.f_nr || "(bez numeru)") + '</b>' +
       '<span class="meta">' + escHtml(fmtDate(r)) + (d.f_klient ? " · " + escHtml(d.f_klient) : "") +
       (auto ? " · " + escHtml(auto) : "") + (d.f_rej ? " · " + escHtml(d.f_rej) : "") +
@@ -3425,7 +3451,7 @@ function grafBlok(r) {
   const h = grafHours(d.f_czas);
   const label = (d.f_rej || d.f_klient || d.f_nr || "?");
   const auto = [d.f_marka, d.f_model].filter(Boolean).join(" ");
-  return '<div data-gid="' + r.id + '" title="' + escHtml((d.f_nr || "") + " · " + auto + " · " + (d.f_klient || "") + " · " + (d.f_usterki || "").split("\n")[0].slice(0, 60) + " · " + (d.f_czas || "czas nieokreślony")) + '" ' +
+  return '<div data-gid="' + escHtml(r.id) + '" title="' + escHtml((d.f_nr || "") + " · " + auto + " · " + (d.f_klient || "") + " · " + (d.f_usterki || "").split("\n")[0].slice(0, 60) + " · " + (d.f_czas || "czas nieokreślony")) + '" ' +
     'style="background:' + meta[1] + ';border-left:4px solid ' + meta[2] + ';color:' + meta[2] + ';border-radius:7px;padding:3px 7px;font-size:11.5px;font-weight:bold;cursor:pointer;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.08);height:' + Math.max(auto ? 46 : 26, Math.round(h * 9)) + 'px;flex:0 0 auto;display:flex;flex-direction:column;justify-content:center">' +
     '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(label) + '</span>' +
     (auto ? '<span style="font-weight:normal;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(auto) + '</span>' : "") +
@@ -3641,6 +3667,58 @@ function checkRequired() {
   return missing;
 }
 document.querySelector(".app-ui").addEventListener("input", () => { scheduleDraft(); przeliczKoszt(); updateTodo(); });
+/* ===== automatyczna blokada po bezczynności =====
+   Odłożony telefon nie może być otwartą furtką do danych klientów. */
+const AUTOBLOKADA_MIN = 30;
+window.__ostAkt = Date.now();
+["pointerdown", "keydown", "touchstart"].forEach(e =>
+  document.addEventListener(e, () => { window.__ostAkt = Date.now(); }, { passive: true }));
+function autoBlokadaSprawdz() {
+  if (!usrCurrent()) return;
+  if (Date.now() - window.__ostAkt > AUTOBLOKADA_MIN * 60 * 1000 && $("lockModal").style.display !== "block") {
+    try { localStorage.removeItem(USR_SES); } catch (e) {}
+    applyRole();
+    lockShow();
+    $("lockErr").textContent = "🔒 Zablokowano po " + AUTOBLOKADA_MIN + " min bezczynności";
+  }
+}
+setInterval(autoBlokadaSprawdz, 60 * 1000);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    autoBlokadaSprawdz();
+    if (usrCurrent()) window.__ostAkt = Date.now();
+  }
+});
+/* ===== dziennik błędów =====
+   Błędy JS z terenu lądują lokalnie i w chmurze (dokument _bledy) —
+   „coś nie działa" przestaje być zagadką. */
+function zapiszBlad(opis) {
+  try {
+    const wer = (document.querySelector("small b") || {}).textContent || "?";
+    const wpis = { t: new Date().toISOString(), kto: (usrCurrent() || {}).i || "?", wersja: wer,
+                   opis: String(opis).slice(0, 300), urz: navigator.userAgent.slice(0, 90) };
+    const l = JSON.parse(localStorage.getItem("asko_bledy") || "[]");
+    l.push(wpis);
+    while (l.length > 20) l.shift();
+    localStorage.setItem("asko_bledy", JSON.stringify(l));
+    if (CLOUD.on && CLOUD.db && !window.__bladT) {
+      window.__bladT = setTimeout(() => {
+        window.__bladT = null;
+        CLOUD.db.collection("zlecenia").doc("_bledy")
+          .set({ id: "_bledy", deleted: true, lista: l.slice(-20), ts: Date.now() }).catch(() => {});
+      }, 4000);
+    }
+  } catch (e) {}
+}
+window.addEventListener("error", ev =>
+  zapiszBlad((ev.message || "błąd") + " @ " + String(ev.filename || "").split("/").pop() + ":" + (ev.lineno || 0)));
+window.addEventListener("unhandledrejection", ev =>
+  zapiszBlad("Promise: " + (ev.reason && (ev.reason.message || ev.reason) || "?")));
+/* ===== service worker: start bez internetu ===== */
+if ("serviceWorker" in navigator) {
+  try { navigator.serviceWorker.register("./sw.js"); } catch (e) {}
+}
+usrMigrujPiny();
 /* historia części auta odświeża się po zmianie VIN / nr rej. */
 let histT = null;
 ["f_vin", "f_rej"].forEach(id => $(id).addEventListener("input", () => {
