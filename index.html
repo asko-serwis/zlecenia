@@ -159,9 +159,12 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 .part-row .p-btns{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
 .part-row .abtn{flex:1 1 auto}
 @media(min-width:641px){
-  .part-row{grid-template-columns:2fr 70px 1.3fr 130px auto;align-items:center}
+  /* tablet/komputer: pola dostają pełną szerokość wiersza,
+     a przyciski schodzą do osobnej linii — nazwa i numer nie są już ściśnięte */
+  .part-row{grid-template-columns:3fr 76px 2fr 150px;align-items:center}
   .part-row .p-name,.part-row .p-cat,.part-row .p-price{grid-column:auto}
-  .part-row .p-btns{grid-column:auto}
+  .part-row .p-btns{grid-column:1/-1}
+  .part-row .p-btns .abtn{flex:0 1 auto;padding-left:14px;padding-right:14px}
 }
 
 /* ---------- ikona archiwum w nagłówku ---------- */
@@ -213,7 +216,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 91</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 92</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
@@ -506,7 +509,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <input type="password" id="lockPin" inputmode="numeric" placeholder="PIN" style="width:100%;font-size:22px;letter-spacing:8px;text-align:center;padding:12px;border-radius:10px;border:none;box-sizing:border-box">
     <button type="button" id="lockGo" class="btn btn-orange" style="width:100%;margin-top:12px;font-size:18px">Wejdź</button>
     <div id="lockErr" style="color:#ff8a80;margin-top:10px;min-height:20px;font-weight:bold"></div>
-    <div style="color:#888;font-size:11px;margin-top:14px">wersja 91</div>
+    <div style="color:#888;font-size:11px;margin-top:14px">wersja 92</div>
   </div>
 </div>
 <div id="usrModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;overflow:auto">
@@ -525,7 +528,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       </div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="usrAdmin"> pełne uprawnienia (ceny zakupu, zamówienia IC, usuwanie, użytkownicy)</label>
       <button type="button" class="btn btn-orange" id="usrAdd" style="width:100%;margin-top:10px">＋ Dodaj</button>
-      <div class="hint" style="margin-top:10px">Pracownik bez pełnych uprawnień może wszystko poza: usuwaniem zleceń i zarządzaniem użytkownikami. Lista użytkowników jest zapisana tylko na tym urządzeniu.</div>
+      <div class="hint" style="margin-top:10px">Pracownik bez pełnych uprawnień może wszystko poza: usuwaniem zleceń i zarządzaniem użytkownikami. Po zalogowaniu do chmury (☁) lista użytkowników synchronizuje się automatycznie między urządzeniami.</div>
     </div>
   </div>
 </div>
@@ -1180,7 +1183,7 @@ function zamRows() {
     .filter(x => x.idx);
 }
 $("zamBtn").addEventListener("click", async () => {
-  if (!icConfigured()) { toast("Brak konfiguracji Inter Cars"); return; }
+  if (!icConfigured()) { toast(icProblemText()); return; }
   const rows = zamRows();
   if (!rows.length) { toast("Żaden wiersz nie ma numeru katalogowego — bez numeru nie da się zamówić"); return; }
   $("zamModal").style.display = "block";
@@ -1266,7 +1269,7 @@ $("zamGo").addEventListener("click", async () => {
 
 /* wycena zbiorcza — jedno zapytanie o wszystkie wiersze z numerami */
 async function icQuoteAll() {
-  if (!icConfigured()) { toast("Brak konfiguracji Inter Cars"); return; }
+  if (!icConfigured()) { toast(icProblemText()); return; }
   const rows = [...$("partsList").querySelectorAll(".part-row")]
     .map(r => ({ row: r, idx: (r.querySelector(".p-cat").value || "").trim(),
                  qty: parseInt(r.querySelector(".p-qty").value || "1", 10) || 1 }))
@@ -1325,6 +1328,14 @@ function icBlad(x) {
 }
 function icConfigured() {
   return !!(window.ASKO_IC && window.ASKO_IC.workerUrl && window.ASKO_IC.workerUrl.indexOf("http") === 0 && icKey());
+}
+/* Dokładna diagnoza: czego brakuje do połączenia z Inter Cars */
+function icProblemText() {
+  if (!(window.ASKO_IC && window.ASKO_IC.workerUrl && window.ASKO_IC.workerUrl.indexOf("http") === 0))
+    return "✖ Brak adresu pośrednika Inter Cars — w pliku intercars-config.js na serwerze trzeba wpisać adres workera Cloudflare w polu workerUrl (teraz jest tam szablon)";
+  if (!icKey())
+    return "✖ Brak klucza Inter Cars na tym urządzeniu — otwórz ☁ i w sekcji „🔐 Klucz Inter Cars” wklej APP_KEY (może to zrobić osoba z pełnymi uprawnieniami)";
+  return "";
 }
 function renderIcResult(row, it, idx) {
   const box = row.querySelector(".ic-result");
@@ -1443,7 +1454,7 @@ async function icQuoteFromLink(row, sku) {
   const box = row.querySelector(".ic-result");
   box.style.display = "block";
   box.textContent = "📥 Rozpoznano link produktu — pobieram dane (kod " + sku + ")…";
-  if (!icConfigured()) { box.textContent = "✖ Brak konfiguracji Inter Cars (intercars-config.js)"; return; }
+  if (!icConfigured()) { box.textContent = icProblemText(); return; }
   const qty = parseInt((row.querySelector(".p-qty").value || "1"), 10) || 1;
   try {
     const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + "/ic/inventory/quote", {
@@ -2112,10 +2123,49 @@ async function cloudInit() {
     });
   } catch (e) { updateCloudUi(); }
 }
-function stopCloudSync() { if (CLOUD.unsub) { CLOUD.unsub(); CLOUD.unsub = null; } }
+function stopCloudSync() {
+  if (CLOUD.unsub) { CLOUD.unsub(); CLOUD.unsub = null; }
+  if (CLOUD.unsubUsers) { CLOUD.unsubUsers(); CLOUD.unsubUsers = null; }
+}
 async function startCloudSync() {
   stopCloudSync();
   const col = CLOUD.db.collection("zlecenia");
+  /* nasłuch listy użytkowników: chmura <-> to urządzenie (wygrywa nowsza) */
+  CLOUD.unsubUsers = col.doc("_uzytkownicy").onSnapshot(dc => {
+    try {
+      const localTs = parseInt(localStorage.getItem("asko_users_ts") || "0", 10);
+      if (!dc.exists) {
+        /* pierwsze urządzenie z chmurą — wysyła swoją listę jako wzorzec;
+           jeśli nigdy jej nie edytowano, dostaje najniższy priorytet (ts=1) */
+        usrPushCloud(usrAll(), localTs || 1);
+        return;
+      }
+      const d = dc.data();
+      if (!d || !Array.isArray(d.users) || !d.users.length) return;
+      /* ochrona: domyślna lista (sam Szef) z innego urządzenia nie może
+         skasować prawdziwej listy pracowników na tym urządzeniu */
+      const cloudDefault = d.users.length === 1 && d.users[0] && d.users[0].i === "Szef";
+      const localList = usrAll();
+      if (cloudDefault && localList.length > 1) {
+        usrPushCloud(localList, Date.now());
+        return;
+      }
+      if ((d.ts || 0) > localTs) {
+        localStorage.setItem(USR_KEY, JSON.stringify(d.users));
+        localStorage.setItem("asko_users_ts", String(d.ts || Date.now()));
+        /* jeśli ekran logowania jest otwarty — odśwież listę, zachowując wpisany PIN */
+        if ($("lockModal").style.display === "block") {
+          const pinVal = $("lockPin").value;
+          lockShow();
+          $("lockPin").value = pinVal;
+        }
+        /* jeśli panel użytkowników jest otwarty — odśwież */
+        if ($("usrModal").style.display === "block") usrRender();
+      } else if ((d.ts || 0) < localTs) {
+        usrPushCloud(usrAll(), localTs);
+      }
+    } catch (e) {}
+  }, e => {});
   try {
     /* pierwsza synchronizacja: lokalne nowsze/nieznane -> chmura */
     const snap = await col.get();
@@ -2167,7 +2217,23 @@ function usrAll() {
   try { const u = JSON.parse(localStorage.getItem(USR_KEY) || "null"); if (u && u.length) return u; } catch (e) {}
   return [{ i: "Szef", p: "2580", r: "admin" }];
 }
-function usrSave(u) { try { localStorage.setItem(USR_KEY, JSON.stringify(u)); } catch (e) {} }
+function usrSave(u) {
+  const ts = Date.now();
+  try {
+    localStorage.setItem(USR_KEY, JSON.stringify(u));
+    localStorage.setItem("asko_users_ts", String(ts));
+  } catch (e) {}
+  usrPushCloud(u, ts);
+}
+/* Synchronizacja listy użytkowników między urządzeniami przez chmurę.
+   Zapis jako specjalny dokument w kolekcji zleceń (deleted:true sprawia,
+   że nasłuch zleceń go pomija) — działa na obecnych regułach Firebase. */
+function usrPushCloud(u, ts) {
+  if (!(CLOUD.on && CLOUD.db)) return;
+  CLOUD.db.collection("zlecenia").doc("_uzytkownicy")
+    .set({ id: "_uzytkownicy", deleted: true, users: u, ts: ts || Date.now() })
+    .catch(e => toast("☁ Nie udało się wysłać listy użytkowników: " + (e.code || e.message)));
+}
 function usrCurrent() {
   try {
     const s = JSON.parse(localStorage.getItem(USR_SES) || "null");
