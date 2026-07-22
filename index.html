@@ -216,7 +216,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 105</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 106</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
@@ -520,7 +520,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <input type="password" id="lockPin" inputmode="numeric" placeholder="PIN" style="width:100%;font-size:22px;letter-spacing:8px;text-align:center;padding:12px;border-radius:10px;border:none;box-sizing:border-box">
     <button type="button" id="lockGo" class="btn btn-orange" style="width:100%;margin-top:12px;font-size:18px">Wejdź</button>
     <div id="lockErr" style="color:#ff8a80;margin-top:10px;min-height:20px;font-weight:bold"></div>
-    <div style="color:#888;font-size:11px;margin-top:14px">wersja 105</div>
+    <div style="color:#888;font-size:11px;margin-top:14px">wersja 106</div>
   </div>
 </div>
 <div id="usrModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;overflow:auto">
@@ -2551,6 +2551,23 @@ function printWindowUrl(rec) {
   if (w) return w + "/print?a=" + encodeURIComponent(location.pathname) + hash;
   return location.origin + location.pathname + hash;
 }
+/* Otwiera adres w PRAWDZIWYM Safari (schemat x-safari- systemu iOS) —
+   tylko tam przycisk drukowania działa bezpośrednio. Jeśli schemat nie
+   zadziała (starszy iOS), po 1,4 s uruchamia się plan awaryjny. */
+function otworzWSafari(url, gdyNieMozna) {
+  let poszlo = false;
+  const znik = () => { poszlo = true; };
+  document.addEventListener("visibilitychange", znik);
+  window.addEventListener("pagehide", znik);
+  try { location.href = "x-safari-" + url; } catch (e) {}
+  setTimeout(() => {
+    document.removeEventListener("visibilitychange", znik);
+    window.removeEventListener("pagehide", znik);
+    if (poszlo || document.visibilityState === "hidden") return;
+    if (gdyNieMozna) gdyNieMozna();
+    else window.open(url, "_blank");
+  }, 1400);
+}
 function doPrint() {
   if (IS_IOS && navigator.standalone === true && !/\/print\/?$/.test(location.pathname)) {
     /* iOS blokuje okno drukowania w aplikacjach z ekranu początkowego —
@@ -2558,7 +2575,7 @@ function doPrint() {
     const rec = saveOrder(true);
     if (!rec) { toast("Uzupełnij dane zlecenia przed wydrukiem"); return; }
     toast("Otwieram wydruk w Safari…");
-    window.open(printWindowUrl(rec), "_blank");
+    otworzWSafari(printWindowUrl(rec));
     return;
   }
   /* Android (Chrome, także jako aplikacja z ekranu głównego) obsługuje
@@ -2639,24 +2656,31 @@ function openFromHash() {
       });
     };
     document.getElementById("printNow").addEventListener("click", () => {
-      /* strona wydruku serwowana przez workera (/print) to już miejsce
-         docelowe — mimo że iOS zgłasza w niej tryb standalone, drukujemy
-         wprost; próba „ucieczki" tworzyłaby pętlę (a=/print → 404) */
       const naStronieWydruku = /\/print\/?$/.test(location.pathname);
-      if (IS_IOS && navigator.standalone === true && !naStronieWydruku) {
-        /* iOS otworzył ten adres WEWNĄTRZ aplikacji, gdzie druk jest
-           zablokowany — wyprowadzamy wydruk do Safari przez przekierowanie */
+      if (IS_IOS && navigator.standalone === true) {
+        if (naStronieWydruku) {
+          /* nakładka wewnątrz aplikacji: druk jest tu zablokowany —
+             przenosimy TĘ stronę (dane jadą w #) do prawdziwego Safari,
+             gdzie przycisk drukuje bezpośrednio */
+          const info = document.querySelector("#printBar div");
+          if (info) info.innerHTML = "Otwieram w Safari — tam pasek drukuje od razu…";
+          otworzWSafari(location.href, () => {
+            const ok = printDoc();
+            if (ok && info) info.innerHTML = "Okno druku się nie pojawiło? Dotknij <b>Udostępnij</b> (kwadrat ze strzałką na dolnym pasku) → <b>Drukuj</b>.";
+          });
+          return;
+        }
+        /* stara ścieżka: strona aplikacji otwarta wewnątrz aplikacji */
         const r2 = loadAll().find(x => x.id === currentId) || rec;
         toast("Otwieram wydruk w Safari…");
-        window.open(printWindowUrl(r2), "_blank");
+        otworzWSafari(printWindowUrl(r2));
         barGotowe();
         return;
       }
       const ok = printDoc();
       if (ok) {
-        /* gdyby iOS mimo gestu nie pokazał okna druku — droga awaryjna zawsze działa */
         const info = document.querySelector("#printBar div");
-        if (info) info.innerHTML = "Okno druku się nie pojawiło? Dotknij <b>Udostępnij</b> (kwadrat ze strzałką na dolnym pasku) → <b>Drukuj</b> — wydruk wyjdzie identyczny.";
+        if (info) info.innerHTML = "Okno druku się nie pojawiło? Dotknij <b>Udostępnij</b> (kwadrat ze strzałką) → <b>Drukuj</b> — wydruk wyjdzie identyczny.";
       }
     });
     document.getElementById("printBarX").addEventListener("click", barOff);
@@ -3164,7 +3188,7 @@ $("archList").addEventListener("click", ev => {
       /* okno Safari MUSI otworzyć się w tym samym geście dotknięcia */
       setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
       toast("Otwieram wydruk w Safari…");
-      window.open(printWindowUrl(rec), "_blank");
+      otworzWSafari(printWindowUrl(rec));
     } else {
       setFormData(rec.data); currentId = rec.id; showEditBadge(true); clearDraft();
       setTimeout(doPrint, 250);
