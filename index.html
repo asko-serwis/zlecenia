@@ -216,7 +216,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
 <header class="app">
   <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:1px">
     <img id="logoImg" src="" alt="ASKO">
-    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 92</b></small>
+    <small style="line-height:1"><b style="color:var(--orange);font-size:11px">wersja 94</b></small>
   </div>
   <button type="button" id="topNew" title="Nowe zlecenie" style="margin-left:auto;flex:0 0 auto">🆕</button>
   <button type="button" id="reloadBtn" title="Odśwież aplikację (pobierz najnowszą wersję)" style="margin-left:0;flex:0 0 auto">↻</button>
@@ -397,8 +397,11 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
       <button type="button" class="abtn" id="zamBtn" style="background:#fce4ec;color:#ad1457;font-weight:bold">🛒 Zamów w IC</button>
     </div>
     <div id="icVehBadge" style="display:none;background:#e8f5e9;border:1.5px solid #2e7d32;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:14px"></div>
+    <div id="partsHist" style="display:none;background:#f1f8e9;border:1.5px solid #9ccc65;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:14px"></div>
     <div class="parts-head">
       <button type="button" class="btn btn-orange" id="partAdd">＋ Dodaj część</button>
+      <button type="button" class="btn btn-grey" id="micParts">🎤 Podyktuj części</button>
+      <input type="text" id="czesciDictBuf" style="display:none" tabindex="-1" aria-hidden="true">
     </div>
     <div id="partsList" class="parts-list"></div>
     <div id="partsSum" style="display:none;text-align:right;font-weight:bold;margin-top:8px;font-size:16px"></div>
@@ -413,6 +416,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <canvas id="sigPad" style="width:100%;height:170px;border:2px dashed var(--border);border-radius:8px;touch-action:none;background:#fff"></canvas>
     <div style="display:flex;gap:10px;margin-top:8px;align-items:center">
       <button type="button" class="btn btn-grey" id="sigClear">Wyczyść podpis</button>
+      <button type="button" class="btn btn-grey" id="sigUnlock" style="display:none">✏ Odblokuj</button>
       <span class="hint" id="sigInfo" style="margin:0">Brak podpisu</span>
     </div>
   </div>
@@ -454,6 +458,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <canvas id="sigPad2" style="width:100%;height:170px;border:2px dashed var(--border);border-radius:8px;touch-action:none;background:#fff;margin-top:6px"></canvas>
     <div style="display:flex;gap:10px;margin-top:8px;align-items:center">
       <button type="button" class="btn btn-grey" id="sigClear2">Wyczyść podpis</button>
+      <button type="button" class="btn btn-grey" id="sigUnlock2" style="display:none">✏ Odblokuj</button>
       <span class="hint" id="sigInfo2" style="margin:0">Brak podpisu odbioru</span>
     </div>
   </div>
@@ -509,7 +514,7 @@ select{background:#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http:
     <input type="password" id="lockPin" inputmode="numeric" placeholder="PIN" style="width:100%;font-size:22px;letter-spacing:8px;text-align:center;padding:12px;border-radius:10px;border:none;box-sizing:border-box">
     <button type="button" id="lockGo" class="btn btn-orange" style="width:100%;margin-top:12px;font-size:18px">Wejdź</button>
     <div id="lockErr" style="color:#ff8a80;margin-top:10px;min-height:20px;font-weight:bold"></div>
-    <div style="color:#888;font-size:11px;margin-top:14px">wersja 92</div>
+    <div style="color:#888;font-size:11px;margin-top:14px">wersja 94</div>
   </div>
 </div>
 <div id="usrModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;overflow:auto">
@@ -1303,6 +1308,60 @@ async function icQuoteAll() {
 }
 $("quoteAllBtn").addEventListener("click", icQuoteAll);
 
+/* Automatyczna wycena wiersza: uruchamia się sama ~1 s po wpisaniu,
+   wklejeniu lub zeskanowaniu numeru katalogowego — bez klikania. */
+async function icQuoteRow(row, force) {
+  if (!icConfigured() || !row || !row.isConnected) return;
+  const idx = (row.querySelector(".p-cat").value || "").trim();
+  if (!idx || idx.length < 4 || !/\d/.test(idx)) return;
+  if (!force && row.dataset.lastIdx === idx) return;
+  if (row.__quoting) return;
+  row.__quoting = true;
+  const qty = parseInt((row.querySelector(".p-qty").value || "1"), 10) || 1;
+  const box = row.querySelector(".ic-result");
+  box.style.display = "block";
+  box.textContent = "💶 Pytam Inter Cars o „" + idx + "”…";
+  try {
+    const r = await fetch(window.ASKO_IC.workerUrl.replace(/\/$/, "") + "/ic/inventory/quote", {
+      method: "POST",
+      headers: { "x-asko-key": icKey(), "content-type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ lines: [{ index: idx, quantity: qty }] })
+    });
+    const txt = await r.text();
+    let j = null;
+    try { j = JSON.parse(txt); } catch (e) {}
+    const items = j ? (Array.isArray(j) ? j : (j.lines || [])) : [];
+    const it = items[0];
+    if (!r.ok) { box.textContent = icBlad(r.status); }
+    else if (it && (it.price || it.name)) {
+      renderIcResult(row, it, idx);
+      row.dataset.lastIdx = idx;
+      const n = row.querySelector(".p-name");
+      if (it.name && (!n.value || n.value.length < 4)) { n.value = it.name; scheduleDraft(); }
+    } else {
+      box.textContent = "✖ IC nie zna numeru „" + idx + "” (pisownia ze spacjami ma znaczenie)";
+      row.dataset.lastIdx = idx;
+    }
+  } catch (e) { box.textContent = icBlad(0); }
+  row.__quoting = false;
+}
+$("partsList").addEventListener("input", ev => {
+  const t = ev.target;
+  const row = t.closest(".part-row");
+  if (!row) return;
+  /* ręczna zmiana ceny wyłącza automatyczne nadpisywanie w tym wierszu */
+  if (t.classList.contains("p-price") && ev.isTrusted) delete t.dataset.auto;
+  if (t.classList.contains("p-cat")) {
+    clearTimeout(row.__qT);
+    row.__qT = setTimeout(() => icQuoteRow(row), 1000);
+  }
+  /* zmiana ilości przy automatycznej cenie — przelicz od nowa */
+  if (t.classList.contains("p-qty") && ev.isTrusted && row.querySelector(".p-price").dataset.auto === "1") {
+    clearTimeout(row.__qT);
+    row.__qT = setTimeout(() => icQuoteRow(row, true), 800);
+  }
+});
+
 /* mostek do Inter Cars e-Catalog: kopiuje VIN (lub nr rej.) i otwiera katalog */
 
 
@@ -1337,16 +1396,45 @@ function icProblemText() {
     return "✖ Brak klucza Inter Cars na tym urządzeniu — otwórz ☁ i w sekcji „🔐 Klucz Inter Cars” wklej APP_KEY (może to zrobić osoba z pełnymi uprawnieniami)";
   return "";
 }
+/* Marża na częściach: cena dla klienta = cena warsztatowa brutto + 30%,
+   zaokrąglona w górę do pełnych złotych. Wpisywana automatycznie,
+   dopóki użytkownik nie poprawi jej ręcznie. */
+const MARZA_PROC = 30;
+function cenaDlaKlienta(pr) {
+  const brutto = pr.customerPriceGross != null ? pr.customerPriceGross
+    : (pr.customerPriceNet != null ? pr.customerPriceNet * 1.23 : null);
+  if (brutto == null || !(brutto > 0)) return null;
+  return Math.ceil(brutto * (1 + MARZA_PROC / 100));
+}
 function renderIcResult(row, it, idx) {
   const box = row.querySelector(".ic-result");
   const pr = it.price || {};
   const avail = (it.lines || []).reduce((s, l) => s + (l.availability || 0), 0);
   const magi = (it.lines || []).filter(l => l.availability > 0).map(l => l.location + ": " + l.availability).join(", ");
+  /* automatyczna cena dla klienta z marżą */
+  const sug = cenaDlaKlienta(pr);
+  const priceInp = row.querySelector(".p-price");
+  let sugTxt = "";
+  if (sug != null) {
+    const qty = parseInt((row.querySelector(".p-qty").value || "1"), 10) || 1;
+    const wpis = sug * qty;
+    if (!priceInp.value || priceInp.dataset.auto === "1") {
+      priceInp.value = String(wpis);
+      priceInp.dataset.auto = "1";
+      priceInp.dispatchEvent(new Event("input", { bubbles: true }));
+      sugTxt = "Cena dla klienta (marża " + MARZA_PROC + "%): <b>" + plnFmt(wpis) + "</b>" +
+        (qty > 1 ? " <span style='color:#666'>(" + qty + " × " + plnFmt(sug) + ")</span>" : "") +
+        " <span style='color:#2e7d32'>— wpisana do wiersza</span><br>";
+    } else {
+      sugTxt = "Sugerowana cena dla klienta (marża " + MARZA_PROC + "%): <b>" + plnFmt(sug * qty) + "</b> <span style='color:#666'>(w wierszu zostaje Twoja ręczna cena)</span><br>";
+    }
+  }
   box.style.display = "block";
   box.innerHTML =
     "<b>" + escHtml(it.name || "") + "</b> <span style='color:#666'>(" + escHtml(it.index || idx) + ")</span><br>" +
     "Cena dla warsztatu: <b>" + (pr.customerPriceNet != null ? pr.customerPriceNet.toFixed(2) + " zł netto / " + (pr.customerPriceGross || 0).toFixed(2) + " zł brutto" : "—") + "</b>" +
     (pr.listPriceGross != null ? " <span style='color:#666'>(katalogowa " + pr.listPriceGross.toFixed(2) + " zł)</span>" : "") + "<br>" +
+    sugTxt +
     "Dostępność: <b>" + (avail >= 10 ? "10+" : avail) + " szt.</b>" + (magi ? " <span style='color:#666'>(" + escHtml(magi) + ")</span>" : " — brak na stanie w Twojej ścieżce") +
     '<div style="margin-top:6px"><button type="button" class="abtn" data-act="pfill">⬇ Wstaw nazwę i numer do wiersza</button></div>';
   row.__icItem = it;
@@ -1864,9 +1952,38 @@ function setupDictation(btnId, targetId, mode, transform) {
 }
 
 /* ==================== PODPISY (przyjęcie i odbiór) ==================== */
-function makeSigPad(canvasId, infoId, clearBtnId, filledMsg, emptyMsg) {
+function makeSigPad(canvasId, infoId, clearBtnId, filledMsg, emptyMsg, unlockBtnId) {
   const canvas = document.getElementById(canvasId);
-  let ctx = null, empty = true, drawing = false;
+  const unlockBtn = unlockBtnId ? document.getElementById(unlockBtnId) : null;
+  let ctx = null, empty = true, drawing = false, locked = false, lockTimer = null;
+  /* Blokada po podpisaniu: chroni złożony podpis przed przypadkowym
+     dorysowaniem (np. przy przewijaniu ekranu czy odkładaniu tabletu). */
+  function lock() {
+    if (empty) return;
+    locked = true;
+    clearTimeout(lockTimer);
+    canvas.style.borderStyle = "solid";
+    canvas.style.borderColor = "var(--ok)";
+    $(infoId).textContent = "🔒 Podpis zablokowany — trafi na wydruk. Poprawka: „✏ Odblokuj” lub „Wyczyść”.";
+    $(infoId).style.color = "var(--ok)";
+    if (unlockBtn) unlockBtn.style.display = "inline-block";
+  }
+  function unlock() {
+    locked = false;
+    clearTimeout(lockTimer);
+    canvas.style.borderStyle = "dashed";
+    canvas.style.borderColor = "";
+    if (unlockBtn) unlockBtn.style.display = "none";
+    if (!empty) {
+      $(infoId).textContent = filledMsg + " — można dorysować; pole zablokuje się samo";
+      $(infoId).style.color = "var(--ok)";
+      scheduleLock();
+    }
+  }
+  function scheduleLock() {
+    clearTimeout(lockTimer);
+    if (!empty) lockTimer = setTimeout(lock, 3000);
+  }
   function resize() {
     const r = canvas.getBoundingClientRect();
     /* podczas wydruku (.app-ui ukryte) rect ma 0×0 — nie zerujemy wtedy canvasu,
@@ -1886,7 +2003,13 @@ function makeSigPad(canvasId, infoId, clearBtnId, filledMsg, emptyMsg) {
   }
   function clearAll() {
     if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    empty = true; $(infoId).textContent = emptyMsg; $(infoId).style.color = "";
+    empty = true;
+    locked = false;
+    clearTimeout(lockTimer);
+    canvas.style.borderStyle = "dashed";
+    canvas.style.borderColor = "";
+    if (unlockBtn) unlockBtn.style.display = "none";
+    $(infoId).textContent = emptyMsg; $(infoId).style.color = "";
   }
   function set(dataUrl) {
     clearAll();
@@ -1902,6 +2025,7 @@ function makeSigPad(canvasId, infoId, clearBtnId, filledMsg, emptyMsg) {
       };
       img.src = dataUrl;
       markFilled();
+      lock(); /* podpis z archiwum jest złożony — od razu chroniony przed dopisaniem */
     }
   }
   /* Zwraca podpis PRZYCIĘTY do faktycznego obrysu tuszu (z małym marginesem).
@@ -1933,7 +2057,12 @@ function makeSigPad(canvasId, infoId, clearBtnId, filledMsg, emptyMsg) {
     return c.toDataURL("image/png");
   }
   canvas.addEventListener("pointerdown", ev => {
+    if (locked) {
+      toast("🔒 Podpis jest zablokowany — aby poprawić, dotknij „✏ Odblokuj” albo „Wyczyść podpis”");
+      return;
+    }
     ev.preventDefault();
+    clearTimeout(lockTimer);
     drawing = true; canvas.setPointerCapture(ev.pointerId);
     const p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x, p.y);
   });
@@ -1943,15 +2072,16 @@ function makeSigPad(canvasId, infoId, clearBtnId, filledMsg, emptyMsg) {
     markFilled();
   });
   ["pointerup", "pointercancel"].forEach(e => canvas.addEventListener(e, () => {
-    if (drawing) { drawing = false; scheduleDraft(); }
+    if (drawing) { drawing = false; scheduleDraft(); scheduleLock(); }
   }));
   $(clearBtnId).addEventListener("click", () => { clearAll(); scheduleDraft(); });
+  if (unlockBtn) unlockBtn.addEventListener("click", unlock);
   return { resize, set, clear: clearAll, isEmpty: () => empty, toDataURL: () => canvas.toDataURL("image/png"), toTrimmedDataURL };
 }
 const sig1 = makeSigPad("sigPad", "sigInfo", "sigClear",
-  "✔ Podpis złożony — trafi na wydruk i do archiwum", "Brak podpisu");
+  "✔ Podpis złożony — trafi na wydruk i do archiwum", "Brak podpisu", "sigUnlock");
 const sig2 = makeSigPad("sigPad2", "sigInfo2", "sigClear2",
-  "✔ Podpis odbioru złożony — trafi na 2 stronę wydruku", "Brak podpisu odbioru");
+  "✔ Podpis odbioru złożony — trafi na 2 stronę wydruku", "Brak podpisu odbioru", "sigUnlock2");
 window.addEventListener("resize", () => { sig1.resize(); sig2.resize(); });
 
 $("odbNow").addEventListener("click", () => {
@@ -3262,6 +3392,12 @@ function checkRequired() {
   return missing;
 }
 document.querySelector(".app-ui").addEventListener("input", () => { scheduleDraft(); przeliczKoszt(); updateTodo(); });
+/* historia części auta odświeża się po zmianie VIN / nr rej. */
+let histT = null;
+["f_vin", "f_rej"].forEach(id => $(id).addEventListener("input", () => {
+  clearTimeout(histT);
+  histT = setTimeout(() => { try { renderPartsHistory(); } catch (e) {} }, 800);
+}));
 document.querySelector(".app-ui").addEventListener("change", () => { scheduleDraft(); updateTodo(); });
 
 
@@ -3275,15 +3411,95 @@ function partRowHtml(pt) {
     '<input type="text" class="p-price" inputmode="decimal" placeholder="Cena dla klienta (zł)" value="' + escHtml(pt.c || "") + '">' +
     '<div class="p-btns">' +
     '<button type="button" class="abtn open" data-act="pvin" style="font-weight:bold">🔎 Szukaj dla tego auta</button>' +
+    '<button type="button" class="abtn" data-act="pmore">⋯ Więcej</button>' +
+    '<button type="button" class="abtn del" data-act="pdel">✖</button>' +
+    '<div class="p-extra" style="flex-basis:100%;display:none;gap:6px;flex-wrap:wrap">' +
     '<button type="button" class="abtn" data-act="pscan">📷 Skan z pudełka</button>' +
     '<button type="button" class="abtn" data-act="pnr">📥 Wklej ze sklepu</button>' +
-    '<button type="button" class="abtn del" data-act="pdel">✖</button>' +
+    '</div>' +
     '<div class="ic-result" style="display:none;flex-basis:100%;background:#f5f8ff;border:1px solid #c7d7f5;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:14px;line-height:1.5"></div>' +
     '</div></div>';
 }
 function renderParts(list) {
   $("partsList").innerHTML = (list || []).map(partRowHtml).join("");
+  try { renderPartsHistory(); } catch (e) {}
 }
+/* ---------- historia: części montowane wcześniej w tym aucie ---------- */
+function renderPartsHistory() {
+  const box = $("partsHist");
+  const vin = ($("f_vin").value || "").trim().toUpperCase();
+  const rej = ($("f_rej").value || "").trim().toUpperCase().replace(/\s+/g, "");
+  if (!vin && !rej) { box.style.display = "none"; box.innerHTML = ""; return; }
+  const map = {};
+  loadAll().forEach(r => {
+    if (!r || r.id === currentId || !r.data) return;
+    const d = r.data;
+    const mVin = vin && String(d.f_vin || "").trim().toUpperCase() === vin;
+    const mRej = rej && String(d.f_rej || "").trim().toUpperCase().replace(/\s+/g, "") === rej;
+    if (!mVin && !mRej) return;
+    const dt = d.f_data || (r.updatedAt || "").slice(0, 10) || "";
+    (d.czesci || []).forEach(pt => {
+      if (!pt || !(pt.n || pt.nr)) return;
+      const k = (pt.n || "").toLowerCase() + "|" + (pt.nr || "").toLowerCase();
+      if (!map[k] || (map[k].dt || "") < dt) map[k] = { n: pt.n || "", nr: pt.nr || "", dt: dt };
+    });
+  });
+  const list = Object.values(map).sort((a, b) => (b.dt || "").localeCompare(a.dt || "")).slice(0, 12);
+  if (!list.length) { box.style.display = "none"; box.innerHTML = ""; return; }
+  box.style.display = "block";
+  box.innerHTML = "<b>🕘 Wcześniej montowane w tym aucie</b> — dotknij, aby dodać ponownie:" +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">' +
+    list.map((x, i) => '<button type="button" class="abtn" data-hi="' + i + '">＋ ' + escHtml(x.n || x.nr) +
+      (x.dt ? ' <span style="opacity:.6;font-size:11px">(' + escHtml(x.dt) + ")</span>" : "") + "</button>").join("") +
+    "</div>";
+  box.__list = list;
+}
+$("partsHist").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-hi]");
+  if (!b) return;
+  const x = ($("partsHist").__list || [])[+b.dataset.hi];
+  if (!x) return;
+  const row = addPartRow({ n: x.n, nr: x.nr, il: "1" });
+  toast("＋ Dodano z historii: " + (x.n || x.nr));
+  przeliczKoszt();
+  icQuoteRow(row);
+});
+/* ---------- dyktowanie listy części ---------- */
+const LICZEBNIKI_CZ = { "jeden": 1, "jedna": 1, "jedno": 1, "dwa": 2, "dwie": 2, "trzy": 3, "cztery": 4,
+  "pięć": 5, "piec": 5, "sześć": 6, "szesc": 6, "siedem": 7, "osiem": 8, "dziewięć": 9, "dziewiec": 9,
+  "dziesięć": 10, "dziesiec": 10, "para": 2 };
+function dodajCzesciZDyktanda(text) {
+  const frag = String(text || "").toLowerCase()
+    .split(/,|;|\.|\bi\b|\boraz\b|\bplus\b|\bdo tego\b|\bjeszcze\b/)
+    .map(s => s.trim()).filter(Boolean);
+  let dodano = 0;
+  frag.forEach(f => {
+    let qty = 1;
+    const m = f.match(/\b(\d{1,2})\b(?!\s*(?:litr|l\b|ml\b|mm\b|cal|w\b|km\b))/);
+    if (m) { qty = +m[1]; f = f.replace(m[0], " "); }
+    else {
+      for (const w in LICZEBNIKI_CZ) {
+        const re = new RegExp("\\b" + w + "\\b");
+        if (re.test(f)) { qty = LICZEBNIKI_CZ[w]; f = f.replace(re, " "); break; }
+      }
+    }
+    f = f.replace(/\b(sztuki|sztuk|sztuka|szt|razy|komplet|kompletu)\b/g, " ").replace(/\s+/g, " ").trim();
+    if (f.length < 3) return;
+    addPartRow({ n: f.charAt(0).toUpperCase() + f.slice(1), il: qty > 1 ? String(qty) : "1" });
+    dodano++;
+  });
+  if (dodano) {
+    przeliczKoszt(); scheduleDraft();
+    toast("🎤 Dodano " + dodano + (dodano === 1 ? " część" : " części") + " — sprawdź nazwy i uzupełnij numery");
+  } else {
+    toast("Nie rozpoznałem części — powiedz np. „klocki przód i dwie tarcze hamulcowe”");
+  }
+}
+$("micParts").addEventListener("click", () => {
+  const buf = $("czesciDictBuf");
+  buf.value = "";
+  dictate(buf, { mode: "replace", btn: $("micParts"), onDone: t => dodajCzesciZDyktanda(t) });
+});
 function getParts() {
   return Array.from(document.querySelectorAll("#partsList .part-row")).map(row => ({
     n: row.querySelector(".p-name").value.trim(),
@@ -3307,7 +3523,13 @@ $("partsList").addEventListener("click", ev => {
   const row = btn.closest(".part-row");
   const nameInp = row.querySelector(".p-name");
   const act = btn.dataset.act;
-  if (act === "pdel") { row.remove(); scheduleDraft(); }
+  if (act === "pdel") { row.remove(); scheduleDraft(); przeliczKoszt(); }
+  else if (act === "pmore") {
+    const ex = row.querySelector(".p-extra");
+    const on = ex.style.display !== "flex";
+    ex.style.display = on ? "flex" : "none";
+    btn.textContent = on ? "⋯ Mniej" : "⋯ Więcej";
+  }
   else if (act === "pvin") { szukajDlaAuta(row); }
   else if (act === "pscan") { startBarScan(row.querySelector(".p-cat")); }
   else if (act === "pfill") {
